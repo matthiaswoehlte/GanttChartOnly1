@@ -1,238 +1,235 @@
-/* Gantt Chart Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Layout tokens */
-:root{
-  --gantt-left-col: 20%;   /* resource table width */
-  --gantt-row-h: 40px;
-  --gantt-timeline-h: 56px;
-  --gantt-header-h: 92px;  /* header min height in flow */
+/* Timeline offset tuning */
+:root {
+  --gantt-timeline-offset: -26px;  /* negative -> shift left by 26px */
 }
 
+/* box model */
 * { box-sizing: border-box; }
-html, body, #app, #gantt-root { height: 100%; }
-body { 
-  background: #0f172a; 
-  color: #e5e7eb; 
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+/* Global layout - enforce 100% height chain */
+html, body, #root, #gantt-root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* Header in flow, not overlay; right column stacked controls + timeline */
-#gantt-root { display:flex; flex-direction:column; }
+/* Apply box-sizing globally */
+* { box-sizing: border-box; }
 
-#gantt-header {
-  position: sticky; top: 0; z-index: 20;     /* above content, aber im Flow */
-  background: rgba(15,23,42,.96);
-  border-bottom: 1px solid #374151;
-}
-#gantt-header-grid{
-  display: grid;
-  grid-template-columns: var(--gantt-left-col) 1fr; /* 20% / 80% */
-  align-items: center;
-  column-gap: 0;
-  padding: 8px 16px 6px 0;   /* kein left padding */
-  min-height: var(--gantt-header-h);
-}
-#gantt-title { padding-left: 12px; }
-#gantt-header-right { display:flex; flex-direction:column; gap:6px; position: static; } /* KEIN absolute/fixed */
+/* The whole timeline content can be nudged by a CSS var */
+#gantt-timeline-content { position:relative; transform: translateX(var(--gantt-xfix, 0px)); }
 
-#gantt-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-
-/* VISIBLE timeline row */
-#gantt-timeline-scroll{
-  height: var(--gantt-timeline-h);
-  overflow-x:auto; overflow-y:hidden;
-  scrollbar-width:none; -ms-overflow-style:none;
-}
-#gantt-timeline-scroll::-webkit-scrollbar{ display:none; }
-#gantt-timeline-content{
-  height: var(--gantt-timeline-h);
-  position: relative;
-  margin: 0 !important; padding: 0 !important; transform: none !important;
-}
-
-/* Body layout */
-#gantt-body-scroll{
-  flex: 1 1 auto;
-  overflow-y:auto; overflow-x:hidden;
-  background:#0b1220;
-}
-#gantt-body-row{ display:flex; min-height:100%; }
-
-#gantt-table-left{
-  flex:0 0 var(--gantt-left-col);
-  width:var(--gantt-left-col);
-  overflow-x:hidden;
-  border-right:1px solid #374151;
-  background:#0f172a;
-}
-#gantt-chart-scroll{
-  flex:1 1 auto;
-  overflow-x:auto; overflow-y:hidden;
-  border-left:0; /* Divider nur auf der Tabelle */
-  background:#0f172a;
-}
-
-/* Remove hidden gutters that push content */
+/* No hidden left padding/margins on scrollers/contents */
 #gantt-timeline-scroll, #gantt-timeline-content,
-#gantt-chart-scroll,    #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
+#gantt-chart-scroll,    #gantt-chart-content {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
 
-/* Alternating rows IN THE CHART BODY */
-#gantt-chart-content{ position:relative; display:block; }
-.gantt-row{
+/* Only the table draws the divider (avoid double lines) */
+#gantt-chart-scroll { border-left:0; }
+#gantt-table-left   { border-right:1px solid #374151; }
+
+/* (Edge labels helpers) */
+.gantt-tick--first { transform: translateX(0) !important; text-align:left; }
+.gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
+
+/* single divider lives on the TABLE ONLY */
+
+/* Header grid uses EXACTLY the table width from a CSS var we set in JS */
+#gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
+#gantt-header-grid {
+  display:grid;
+  grid-template-columns: var(--gantt-table-w, 280px) 1fr;   /* <-- bound to table width */
+  align-items:center;
+  column-gap:16px;
+  position:relative;         /* anchor for vrule */
+  padding:12px 16px 4px 16px;
+}
+
+/* controls stay on one row */
+#gantt-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+#gantt-controls .ctrl { display:flex; align-items:center; gap:6px; }
+#gantt-controls select,
+#gantt-controls input[type="month"],
+#gantt-controls input[type="date"] {
+  height:32px; line-height:32px; padding:0 10px; border:1px solid #4B5563; border-radius:6px;
+  background:#111827; color:#E5E7EB; appearance:none; -webkit-appearance:none;
+}
+
+/* timeline & chart contents must start at x=0 (no left padding/margins) */
+#gantt-timeline-scroll, #gantt-chart-scroll { padding-left:0; }
+#gantt-timeline-content, #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
+
+/* Timeline content can be nudged by CSS var --gantt-x0 (default 0) */
+#gantt-timeline-content {
   position: relative;
-  height: var(--gantt-row-h);
+  transform: translateX(var(--gantt-timeline-offset));
+}
+
+/* The zero anchor marks x=0 for measurement */
+#gantt-timeline-zero {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0;           /* no visual width */
+  pointer-events: none;
+}
+
+#gantt-chart-content {
+  transform: none;
+}
+
+/* header overlay: draw the same divider in the header for easy visual check */
+#gantt-header-vrule {
+  position:absolute; left: var(--gantt-table-w, 280px); top:0; bottom:0;
+  width:1px; background:#374151; pointer-events:none; z-index:5;
+}
+
+/* first/last tick label alignment helpers */
+.gantt-tick--first { transform: translateX(0) !important; text-align:left; }
+.gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
+
+/* Gantt Chart Layout */
+#gantt-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+#gantt-body-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  overflow-y: auto;        /* ONLY vertical scrollbar lives here */
+  overflow-x: hidden;
+  max-height: calc(100vh - var(--gantt-header-h, 88px) - var(--gantt-footer-h, 0px));
+}
+
+#gantt-body-row {
+  display: flex;
+  min-height: 100%;
+}
+
+/* Zero-offset: scrollable contents must start at x=0 */
+#gantt-timeline-content,
+#gantt-chart-content {
+  position: relative;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  transform: none;
+}
+
+#gantt-controls label { font-size: 0.9rem; color: #cbd5e1; }
+
+#gantt-chart-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  padding-bottom: 16px;
+}
+
+#gantt-timeline-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+#gantt-timeline-scroll::-webkit-scrollbar {
+  display: none;     /* timeline scrollbar hidden */
+}
+
+#gantt-chart-scroll::-webkit-scrollbar {
+  height: 12px;      /* chart scrollbar visible */
+}
+
+#gantt-chart-scroll::-webkit-scrollbar-track {
+  background-color: #1F2937;
+}
+
+#gantt-chart-scroll::-webkit-scrollbar-thumb {
+  background-color: #4B5563;
+  border-radius: 4px;
+}
+
+#gantt-chart-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #6B7280;
+}
+
+#gantt-chart-content,
+#gantt-timeline-content,
+#gantt-hscroll-inner {
   display: block;
-  width: 100%;
-  /* alternating background */
+  flex: 0 0 auto;     /* prevent flex shrink */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  width: var(--gantt-content-w, 100%);
+  min-width: var(--gantt-content-w, 100%);
+  transform: none;
+}
+
+#gantt-hscroll-proxy {
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  height: 16px;
+  background: rgba(2, 6, 23, 0.85);
+  border-top: 1px solid #374151;
+  overflow-x: auto;
+  overflow-y: hidden;       /* visible sticky scrollbar */
+}
+
+#gantt-hscroll-inner {
+  height: 1px;
+}
+
+#gantt-footer {
+  background: #0f172a;
+  border-top: 1px solid #374151;
+  padding: 8px 16px;
+}
+
+/* Row styling */
+.row {
+  height: 40px;
+}
+
+.row.even {
   background: #1F2937;
 }
-.gantt-row:nth-child(odd) { background: #374151; }
 
-/* Bars live inside each row */
-.gantt-row-bars{
-  position: relative;  /* NOT absolute; keeps bars local */
-  height: 100%;
-}
-.gantt-bar{
-  position: absolute;  /* left & width in px, top = row padding */
-  top: 6px;            /* or 0; keep consistent */
-  height: calc(100% - 12px);
-  border-radius: 6px;
+.row.odd {
+  background: #374151;
 }
 
-/* Resource table rows */
-.row{ height:var(--gantt-row-h); display:flex; align-items:center; }
-.row.even{ background:#1F2937; }
-.row.odd { background:#374151; }
-
-/* Tick label helpers (to avoid edge clipping) */
-.gantt-tick--first{ transform:translateX(0)!important; text-align:left; }
-.gantt-tick--last { transform:translateX(-100%)!important; text-align:right; }
-
-/* Z-Index & stacking contexts */
-#gantt-chart-scroll, #gantt-chart-content { position:relative; z-index: 1; }
-#gantt-header { z-index: 20; }
-
-/* Sticky proxy scroller that is always visible in viewport */
-#gantt-hscroll-proxy{
-  position: sticky; bottom: 0; z-index: 30;
-  height: 14px;                 /* only the scrollbar is visible */
-  overflow-x: auto; overflow-y: hidden;
-  background: transparent;
-}
-#gantt-hscroll-track{ width: var(--gantt-content-w); height: 1px; }
-
-/* Ensure the real scrollers have no transforms that could desync */
-#gantt-chart-scroll, #gantt-chart-content,
-#gantt-timeline-scroll, #gantt-timeline-content { transform: none !important; }
-
-/* === FULL-WIDTH STRIPES IN THE BAR AREA ===
-   Draw stripes once as an absolute overlay that spans the WHOLE content width. */
-#gantt-chart-content{ position: relative; }
-#gantt-bg-grid{
-  position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    #1F2937 0 calc(var(--gantt-row-h)),
-    #374151 calc(var(--gantt-row-h)) calc(var(--gantt-row-h)*2)
-  );
-}
-/* Bars above the grid */
-.gantt-row, .gantt-row-bars{ position: relative; }
-.gantt-row{ height: var(--gantt-row-h); }
-.gantt-row-bars{ height: 100%; z-index: 1; }
-
-/* A) Alternating rows LEFT = RIGHT (single source of truth) */
-#gantt-table-left .table-row,
-#gantt-chart-content .gantt-row {
-  height: var(--gantt-row-h);
-  background: transparent; /* Grid overlay handles stripes */
-  border-top: 0;
-  border-bottom: 0;
-}
-
-/* Keep table row backgrounds for left side */
-#gantt-table-left .table-row { background: #1F2937; }
-#gantt-table-left .table-row:nth-child(odd) { background: #374151; }
-
-/* Only ONE vertical divider: right edge of table */
-#gantt-table-left { border-right: 1px solid #374151; }
-#gantt-chart-scroll { border-left: 0; }
-
-/* B) Bars render INSIDE each row with centered labels */
-.gantt-row { position: relative; }
-.gantt-row-bars { position: relative; width: 100%; height: 100%; overflow: visible; }
-.gantt-bar {
-  position: absolute;
-  top: 6px;
-  height: calc(100% - 12px);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-/* IMPORTANT: no transforms on chart content or ancestors */
-#gantt-chart-content,
-#gantt-chart-scroll { transform: none !important; }
-
-.gantt-bar-label {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  max-width: calc(100% - 10px);
-  padding: 0 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-  font-weight: 600;
-  font-size: 12px;
-  color: white;
-}
-
-.gantt-bar--short .gantt-bar-label {
-  display: none;
-}
-
-/* E) Vertical scrolling: ONE container */
-#gantt-body-scroll { overflow-y: auto; }
-#gantt-table-left, #gantt-chart-scroll { overflow-y: hidden; }
-
-/* Task bar styles */
+/* Task bar styling */
 .task-bar {
-  position: absolute;
-  height: 32px;
-  border-radius: 4px;
-  cursor: move;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s ease;
 }
 
 .task-bar:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .task-bar.dragging {
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1000 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* Resize handles */
+/* Resize cursor areas */
 .resize-handle {
   position: absolute;
   top: 0;
-  bottom: 0;
+  height: 100%;
   width: 8px;
   cursor: col-resize;
-  opacity: 0;
-  transition: opacity 0.2s;
+  z-index: 10;
 }
 
 .resize-handle.left {
@@ -241,61 +238,4 @@ body {
 
 .resize-handle.right {
   right: 0;
-}
-
-.task-bar:hover .resize-handle {
-  opacity: 1;
-}
-
-/* Controls styling */
-#gantt-controls label {
-  font-size: 14px;
-  color: #d1d5db;
-  font-weight: 500;
-}
-
-#gantt-controls select,
-#gantt-controls input {
-  padding: 6px 12px;
-  background: #374151;
-  color: #e5e7eb;
-  border: 1px solid #4b5563;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-#gantt-controls select:focus,
-#gantt-controls input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-#gantt-date-label {
-  font-size: 14px;
-  color: #9ca3af;
-  font-weight: 500;
-}
-
-/* Timeline ruler styles */
-.timeline-tick {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  border-left: 1px solid #4b5563;
-}
-
-.timeline-tick-label {
-  position: absolute;
-  top: 8px;
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 500;
-}
-
-.timeline-minor-tick {
-  position: absolute;
-  top: 0;
-  height: 24px;
-  border-left: 1px solid #374151;
 }

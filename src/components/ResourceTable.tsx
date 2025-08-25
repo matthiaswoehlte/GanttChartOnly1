@@ -11,7 +11,9 @@ const ResourceTable: React.FC<ResourceTableProps> = ({ resources }) => {
       {resources.map((resource, index) => (
         <div
           key={resource.id}
-          className="table-row flex items-center px-4"
+          className={`flex items-center px-4 py-3 border-b border-gray-600 row ${
+            index % 2 === 0 ? 'even' : 'odd'
+          }`}
         >
           <div className="text-sm font-medium text-gray-200 truncate">
             {resource.name}

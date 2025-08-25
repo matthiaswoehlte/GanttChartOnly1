@@ -233,14 +233,25 @@ const TaskBar: React.FC<TaskBarProps> = ({
     <>
       <div
         ref={barRef}
-        className={`absolute inset-0 cursor-pointer select-none task-bar ${
+        className={`absolute h-8 rounded shadow-lg border border-opacity-50 cursor-pointer select-none task-bar ${
           isDragging ? 'dragging' : ''
         } ${isResizing ? 'cursor-col-resize' : 'cursor-move'}`}
         style={{
-          background: 'transparent'
+          left: Math.max(0, left),
+          width: Math.max(24, width),
+          backgroundColor: task.color,
+          borderColor: task.color,
+          top: '6px'
         }}
         onMouseDown={handleMouseDown}
+        title={`${task.title} (${task.startDate.toLocaleString()} - ${task.endDate.toLocaleString()})`}
       >
+        <div className="flex items-center justify-center h-full px-2">
+          <span className="text-xs font-medium text-white truncate">
+            {task.title}
+          </span>
+        </div>
+        
         {/* Resize handles */}
         <div className="resize-handle left" />
         <div className="resize-handle right" />
