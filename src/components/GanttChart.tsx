@@ -377,6 +377,58 @@ const GanttChart: React.FC = () => {
       // Initial alignment after current layout tick
       requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
     })();
+
+    // Robust scroll sync with DOM observation
+    (function ensureGanttScrollSync(){
+      const CHART_ID = 'gantt-chart-scroll';
+      const TIME_ID  = 'gantt-timeline-scroll';
+
+      // Avoid rebinding loops
+      function bind(chart, time){
+        if (!chart || !time) return false;
+        if (chart.__ganttSyncBound) return true;
+        chart.__ganttSyncBound = true;
+
+        let ticking = false;
+        function follow(){
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(() => {
+            const sl = chart.scrollLeft;
+            if (time.scrollLeft !== sl) time.scrollLeft = sl; // one-way: bars -> timeline
+            ticking = false;
+          });
+        }
+        chart.addEventListener('scroll', follow, { passive: true });
+
+        // Align once after layout
+        requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
+
+        return true;
+      }
+
+      // Try to bind now, then observe DOM for late mounts/re-mounts
+      function tryBind(){
+        const chart = document.getElementById(CHART_ID);
+        const time  = document.getElementById(TIME_ID);
+        if (bind(chart, time)) return true;
+        return false;
+      }
+
+      // Attempt immediately and on DOM ready
+      if (!tryBind()) {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', tryBind, { once: true });
+        }
+      }
+
+      // MutationObserver to catch mounts/re-mounts (e.g., framework rerenders)
+      const mo = new MutationObserver(() => { tryBind(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+
+      // Optional: public helper if your code switches views/presets and replaces nodes
+      window.__ganttRebindScrollSync = tryBind;
+    })();
   }, []);
 
   return (
