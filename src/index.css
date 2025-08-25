@@ -89,6 +89,20 @@ html, body, #root, #gantt-root {
   background:#111827; color:#E5E7EB; appearance:none; -webkit-appearance:none;
 }
 
+/* Timeline scrollable containment + hide scrollbar */
+#gantt-header-right { overflow: hidden; }
+#gantt-timeline-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#gantt-timeline-scroll::-webkit-scrollbar { display: none; }
+
+/* Safety to prevent page-level X-scroll */
+#root, #gantt-root, body { overflow-x: hidden; }
+
 /* timeline & chart contents must start at x=0 (no left padding/margins) */
 #gantt-timeline-scroll, #gantt-chart-scroll { padding-left:0; }
 #gantt-timeline-content, #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }

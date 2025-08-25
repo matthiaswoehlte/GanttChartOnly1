@@ -318,6 +318,51 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Timeline sync to bars scroller
+  useEffect(() => {
+    (function ganttTimelineSync(){
+      const candidates = ['gantt-chart-scroll','gantt-body-scroll'];
+      function getBarScroller(){
+        // pick the first horizontally scrollable candidate
+        for (const id of candidates){
+          const el = document.getElementById(id);
+          if (el && el.scrollWidth > el.clientWidth) return el;
+        }
+        // fallback: best guess inside body area
+        const guess = document.querySelector('#gantt-root [data-role="bars"], #gantt-root [id*="chart"][id*="scroll"]');
+        return (guess && guess.scrollWidth > guess.clientWidth) ? guess : null;
+      }
+      function bind(){
+        const chart = getBarScroller();
+        const time  = document.getElementById('gantt-timeline-scroll');
+        if (!chart || !time) return false;
+        if (chart.__syncBound) return true;
+        chart.__syncBound = true;
+
+        let ticking = false;
+        chart.addEventListener('scroll', () => {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(() => {
+            const x = chart.scrollLeft;
+            if (time.scrollLeft !== x) time.scrollLeft = x;
+            ticking = false;
+          });
+        }, { passive: true });
+
+        // initial alignment after layout
+        requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
+        return true;
+      }
+
+      // try now, then re-try on DOM mutations (framework remounts)
+      if (!bind()){
+        const mo = new MutationObserver(() => { bind(); });
+        mo.observe(document.documentElement, { childList: true, subtree: true });
+      }
+    })();
+  }, []);
+
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
     const chart = document.getElementById('gantt-chart-scroll');
