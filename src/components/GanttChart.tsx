@@ -137,13 +137,20 @@ const GanttChart: React.FC = () => {
 
     // Set content width once (no observer loops)
     function ganttSetContentWidth(px: number) {
-      const w = Math.max(0, Math.round(px));               // no nudge, no ceil+2
       const cc = document.getElementById('gantt-chart-content');
       const tc = document.getElementById('gantt-timeline-content');
       if (!cc || !tc) return;
+      const w = Math.max(0, Math.round(px));
       cc.style.width = w + 'px';
       tc.style.width = w + 'px';
-      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
+    }
+
+    // Fallback to mirror chart width to timeline
+    function mirrorChartWidthToTimeline() {
+      const cc = document.getElementById('gantt-chart-content');
+      if (!cc) return;
+      const w = parseFloat(cc.style.width) || cc.scrollWidth || cc.getBoundingClientRect().width;
+      ganttSetContentWidth(w);
     }
 
     function ganttLayout(view: string, presetLabel: string, anchorDate: Date) {
@@ -154,6 +161,7 @@ const GanttChart: React.FC = () => {
       const { totalUnits, visibleUnits } = ganttUnits(view, presetLabel, anchorDate);
       const contentPx = viewport * (totalUnits / Math.max(1, visibleUnits));
       ganttSetContentWidth(contentPx);
+      document.documentElement.style.setProperty('--gantt-content-w', Math.round(contentPx) + 'px');
       
       // Update React state
       setPxPerUnit(contentPx / totalUnits);
@@ -259,40 +267,38 @@ const GanttChart: React.FC = () => {
 
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
-    // One-way scroll sync (Bars → Timeline) + Wheel forwarding
-    (function wireGanttScrollSync() {
-      const a = document.getElementById('gantt-chart-scroll');
-      const b = document.getElementById('gantt-timeline-scroll');
+    // One-way scroll sync with proper timeline scrolling
+    (function() {
+      const chart = document.getElementById('gantt-chart-scroll');
+      const time = document.getElementById('gantt-timeline-scroll');
       const proxy = document.getElementById('gantt-hscroll-proxy');
-      if (!a || !b) return;
+      if (!chart || !time) return;
       
-      // Bars -> Timeline (one-way, no feedback loop)
-      a.addEventListener('scroll', () => {
-        b.scrollLeft = a.scrollLeft;
-        if (proxy) proxy.scrollLeft = a.scrollLeft;
+      // Chart -> Timeline (one-way sync)
+      chart.addEventListener('scroll', () => {
+        if (time.scrollLeft !== chart.scrollLeft) time.scrollLeft = chart.scrollLeft;
+        if (proxy) proxy.scrollLeft = chart.scrollLeft;
       }, { passive: true });
       
-      // Wheel/Trackpad over Timeline controls the Bars scroller
-      b.addEventListener('wheel', (e) => {
-        // horizontal delta or Shift+Scroll
+      // Wheel over timeline controls chart
+      time.addEventListener('wheel', (e) => {
         if (e.shiftKey || Math.abs(e.deltaX) > 0) {
-          const dx = (Math.abs(e.deltaX) > 0 ? e.deltaX : e.deltaY);
-          a.scrollLeft += dx;
+          chart.scrollLeft += (Math.abs(e.deltaX) > 0 ? e.deltaX : e.deltaY);
           e.preventDefault();
         }
       }, { passive: false });
       
       if (proxy) {
         proxy.addEventListener('scroll', () => {
-          a.scrollLeft = proxy.scrollLeft;
-          b.scrollLeft = proxy.scrollLeft;
+          chart.scrollLeft = proxy.scrollLeft;
+          time.scrollLeft = proxy.scrollLeft;
         }, { passive: true });
       }
       
-      // Initial alignment (after view/preset switch)
+      // Initial alignment
       requestAnimationFrame(() => {
-        b.scrollLeft = a.scrollLeft; 
-        if (proxy) proxy.scrollLeft = a.scrollLeft; 
+        time.scrollLeft = chart.scrollLeft;
+        if (proxy) proxy.scrollLeft = chart.scrollLeft;
       });
     })();
   }, []);

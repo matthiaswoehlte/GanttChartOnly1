@@ -89,6 +89,8 @@ html, body, #root, #gantt-root {
   margin-left: 0 !important;
   padding-left: 0 !important;
   border-left: 0 !important;           /* avoid double line */
+  min-width: 0;
+  overflow: visible;
 }
 
 /* controls stay on one row */
@@ -110,9 +112,10 @@ html, body, #root, #gantt-root {
 
 /* timeline & chart contents must start at x=0 (no left padding/margins) */
 #gantt-timeline-scroll { 
-  padding-left: 0;
-  overflow-x: hidden !important;  /* no UI scrollbar */
+  min-width: 0;
+  overflow-x: auto !important;
   overflow-y: hidden;
+  padding-left: 0;
 }
 #gantt-chart-scroll { 
   padding-left: 0;
