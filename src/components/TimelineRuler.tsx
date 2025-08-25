@@ -8,23 +8,21 @@ interface TimelineRulerProps {
   containerWidth: number;
   onScroll: (scrollLeft: number) => void;
   scrollLeft: number;
+  pxPerUnit: number;
+  totalUnits: number;
 }
 
 const TimelineRuler: React.FC<TimelineRulerProps> = ({
-  viewConfig
+  viewConfig,
+  pxPerUnit,
+  totalUnits
 }) => {
   const renderHourView = () => {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (!chartScroll) return null;
-    
-    const visible = parseInt(viewConfig.preset.replace('h', ''));
-    const viewportW = chartScroll.getBoundingClientRect().width;
-    const pxPerHour = viewportW / visible;
     const ticks = [];
     
-    // Render major ticks at x = h * pxPerHour for h = 0..24
+    // Render major ticks at x = h * pxPerUnit for h = 0..24
     for (let hour = 0; hour <= 24; hour++) {
-      const x = hour * pxPerHour;
+      const x = hour * pxPerUnit;
       
       if (hour < 24) {
         // Major tick (hour)
@@ -43,15 +41,15 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
           </div>
         );
         
-        // Minor tick (30 minutes)
-        if (pxPerHour >= 40) { // Only show minor ticks if there's enough space
-          const minorX = x + pxPerHour * 0.5;
+        // Minor tick (30 minutes) if there's enough space
+        if (pxPerUnit >= 40) {
+          const minorX = x + pxPerUnit * 0.5;
           ticks.push(
             <div key={`half-${hour}`} className="absolute top-0 h-6 border-l border-gray-700" style={{ left: minorX }} />
           );
         }
       } else {
-        // End cap line at x = 24 * pxPerHour
+        // End cap line at x = 24 * pxPerUnit
         ticks.push(
           <div key="end-cap" className="absolute top-0 h-full border-l border-gray-500" style={{ left: x }}>
             <div 
@@ -69,25 +67,20 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     }
     
     return (
-      <div className="relative h-12" style={{ width: Math.ceil(24 * pxPerHour) + 2 }}>
+      <div className="relative h-12" style={{ width: Math.ceil(24 * pxPerUnit) + 2 }}>
         {ticks}
       </div>
     );
   };
 
   const renderWeekView = () => {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (!chartScroll) return null;
-    
     const { selectedDate, preset } = viewConfig;
     const startTime = getStartOfWeek(selectedDate);
     const days = (preset === 'full') ? 7 : 5;
-    const viewportW = chartScroll.getBoundingClientRect().width;
-    const pxPerDay = viewportW / days;
     const ticks = [];
     
     for (let day = 0; day <= days; day++) {
-      const x = day * pxPerDay;
+      const x = day * pxPerUnit;
       
       if (day < days) {
         const currentDay = new Date(startTime);
@@ -116,26 +109,20 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     }
     
     return (
-      <div className="relative h-12" style={{ width: Math.ceil(days * pxPerDay) + 2 }}>
+      <div className="relative h-12" style={{ width: Math.ceil(days * pxPerUnit) + 2 }}>
         {ticks}
       </div>
     );
   };
 
   const renderMonthView = () => {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (!chartScroll) return null;
-    
-    const { selectedDate, preset } = viewConfig;
+    const { selectedDate } = viewConfig;
     const startTime = getStartOfMonth(selectedDate);
     const dim = getDaysInMonth(selectedDate);
-    const visible = (preset === 'full') ? dim : Number(preset);
-    const viewportW = chartScroll.getBoundingClientRect().width;
-    const pxPerDay = viewportW / visible;
     const ticks = [];
     
     for (let day = 0; day <= dim; day++) {
-      const x = day * pxPerDay;
+      const x = day * pxPerUnit;
       
       if (day < dim) {
         const currentDay = new Date(startTime);
@@ -164,7 +151,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     }
     
     return (
-      <div className="relative h-12" style={{ width: Math.ceil(dim * pxPerDay) + 2 }}>
+      <div className="relative h-12" style={{ width: Math.ceil(dim * pxPerUnit) + 2 }}>
         {ticks}
       </div>
     );

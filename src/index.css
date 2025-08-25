@@ -45,9 +45,8 @@ html, body, #root, #gantt-root {
 #gantt-table-left {
   flex: 0 0 20%;
   width: 20%;
-  border-right: 1px solid #374151;
   overflow-x: hidden;
-  overflow-y: hidden;
+  border-right: 1px solid #374151;
 }
 
 #gantt-chart-scroll {
@@ -68,6 +67,7 @@ html, body, #root, #gantt-root {
   border: 0;
   width: var(--gantt-content-w, 100%);
   min-width: var(--gantt-content-w, 100%);
+  transform: none;
 }
 
 #gantt-timeline-scroll {

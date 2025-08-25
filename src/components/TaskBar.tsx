@@ -6,7 +6,8 @@ import { differenceInHours, addHours, getStartOfDay, getStartOfWeek, getStartOfM
 interface TaskBarProps {
   task: Task;
   viewConfig: ViewConfig;
-  containerWidth: number;
+  pxPerUnit: number;
+  totalUnits: number;
   rowIndex: number;
   onUpdate: (updatedTask: Task) => void;
   onMove: (taskId: string, newResourceId: string) => void;
@@ -16,7 +17,8 @@ interface TaskBarProps {
 const TaskBar: React.FC<TaskBarProps> = ({
   task,
   viewConfig,
-  containerWidth,
+  pxPerUnit,
+  totalUnits,
   rowIndex,
   onUpdate,
   onMove,
@@ -32,8 +34,6 @@ const TaskBar: React.FC<TaskBarProps> = ({
     text: ''
   });
   const barRef = useRef<HTMLDivElement>(null);
-  
-  const timelineConfig = getTimelineConfig(viewConfig, containerWidth);
   
   // Calculate anchor times based on view type
   const getAnchorTime = () => {
@@ -51,40 +51,6 @@ const TaskBar: React.FC<TaskBarProps> = ({
   };
   
   const anchorTime = getAnchorTime();
-  
-  // Calculate pxPerUnit using SAME logic as content width calculation
-  let pxPerUnit;
-  if (viewConfig.type === 'hour') {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (chartScroll) {
-      const visible = parseInt(viewConfig.preset.replace('h', ''));
-      const viewportW = chartScroll.getBoundingClientRect().width;
-      pxPerUnit = viewportW / visible; // pxPerHour
-    } else {
-      pxPerUnit = timelineConfig.pxPerHour;
-    }
-  } else if (viewConfig.type === 'week') {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (chartScroll) {
-      const days = (viewConfig.preset === 'full') ? 7 : 5;
-      const viewportW = chartScroll.getBoundingClientRect().width;
-      pxPerUnit = viewportW / days; // pxPerDay
-    } else {
-      pxPerUnit = timelineConfig.pxPerDay;
-    }
-  } else if (viewConfig.type === 'month') {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (chartScroll) {
-      const dim = getDaysInMonth(viewConfig.selectedDate);
-      const visible = (viewConfig.preset === 'full') ? dim : Number(viewConfig.preset);
-      const viewportW = chartScroll.getBoundingClientRect().width;
-      pxPerUnit = viewportW / visible; // pxPerDay
-    } else {
-      pxPerUnit = timelineConfig.pxPerDay;
-    }
-  } else {
-    pxPerUnit = timelineConfig.pxPerHour;
-  }
   
   // Calculate position and width using SAME pxPerUnit
   const taskStart = task.startDate.getTime();
@@ -172,15 +138,7 @@ const TaskBar: React.FC<TaskBarProps> = ({
       updateTooltip(e, newStartDate, newEndDate);
       
       // Constrain within timeline bounds
-      let maxUnits;
-      if (viewConfig.type === 'hour') {
-        maxUnits = 24;
-      } else if (viewConfig.type === 'week') {
-        maxUnits = (viewConfig.preset === 'full') ? 7 : 5;
-      } else {
-        maxUnits = getDaysInMonth(viewConfig.selectedDate);
-      }
-      const constrainedUnits = Math.min(newUnitsFromAnchor, maxUnits - durationUnits);
+      const constrainedUnits = Math.min(newUnitsFromAnchor, totalUnits - durationUnits);
       
       const constrainedStartDate = new Date(anchorStart + constrainedUnits * msPerUnit);
       const constrainedEndDate = new Date(constrainedStartDate.getTime() + durationUnits * msPerUnit);
@@ -265,7 +223,7 @@ const TaskBar: React.FC<TaskBarProps> = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, isResizing, dragOffset, task, viewConfig, pxPerUnit]);
+  }, [isDragging, isResizing, dragOffset, task, viewConfig, pxPerUnit, totalUnits]);
 
   return (
     <>

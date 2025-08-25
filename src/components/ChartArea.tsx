@@ -13,6 +13,8 @@ interface ChartAreaProps {
   scrollLeft: number;
   onTaskUpdate: (updatedTask: Task) => void;
   onTaskMove: (taskId: string, newResourceId: string) => void;
+  pxPerUnit: number;
+  totalUnits: number;
 }
 
 const ChartArea: React.FC<ChartAreaProps> = ({
@@ -24,8 +26,9 @@ const ChartArea: React.FC<ChartAreaProps> = ({
   scrollLeft,
   onTaskUpdate,
   onTaskMove
+  pxPerUnit,
+  totalUnits
 }) => {
-  const timelineConfig = getTimelineConfig(viewConfig, containerWidth);
 
   // Calculate visible time range based on view type
   const getVisibleTimeRange = () => {
@@ -79,7 +82,8 @@ const ChartArea: React.FC<ChartAreaProps> = ({
                 key={task.id}
                 task={task}
                 viewConfig={viewConfig}
-                containerWidth={containerWidth}
+                pxPerUnit={pxPerUnit}
+                totalUnits={totalUnits}
                 rowIndex={rowIndex}
                 onUpdate={onTaskUpdate}
                 onMove={onTaskMove}

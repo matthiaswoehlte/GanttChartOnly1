@@ -5,7 +5,7 @@ import ViewControls from './ViewControls';
 import TimelineRuler from './TimelineRuler';
 import ResourceTable from './ResourceTable';
 import ChartArea from './ChartArea';
-import { getDaysInMonth, getStartOfDay, getStartOfWeek, getStartOfMonth } from '../utils/dateUtils';
+import { getDaysInMonth } from '../utils/dateUtils';
 
 const GanttChart: React.FC = () => {
   // Generate sample data
@@ -22,6 +22,10 @@ const GanttChart: React.FC = () => {
   const [containerWidth, setContainerWidth] = useState(0);
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
+
+  // Layout state
+  const [pxPerUnit, setPxPerUnit] = useState(0);
+  const [totalUnits, setTotalUnits] = useState(0);
 
   // Measure container width
   useEffect(() => {
@@ -75,115 +79,186 @@ const GanttChart: React.FC = () => {
     });
   };
 
-  // Width calculation and scroll synchronization
-  const updateContentWidths = () => {
+  // Helper functions
+  const startOfDay = (d: Date): Date => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+
+  const isoMonday = (d: Date): Date => {
+    const x = startOfDay(d);
+    const day = (x.getDay() + 6) % 7;
+    x.setDate(x.getDate() - day);
+    return x;
+  };
+
+  const daysInMonth = (d: Date): number => {
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  };
+
+  const vw = (): number => {
     const chartScroll = document.getElementById('gantt-chart-scroll');
+    return chartScroll ? chartScroll.getBoundingClientRect().width : 0;
+  };
+
+  const applyW = (px: number) => {
+    const w = Math.ceil(px) + 2; // safety pixels
     const chartContent = document.getElementById('gantt-chart-content');
-    const timelineScroll = document.getElementById('gantt-timeline-scroll');
     const timelineCont = document.getElementById('gantt-timeline-content');
-    const proxyScroll = document.getElementById('gantt-hscroll-proxy');
     const proxyInner = document.getElementById('gantt-hscroll-inner');
     
-    if (!chartScroll || !chartContent || !timelineScroll || !timelineCont || !proxyScroll || !proxyInner) return;
-    
-    function viewportW() {
-      return chartScroll.getBoundingClientRect().width;
-    }
-    
-    function applyW(px: number) {
-      const w = Math.ceil(px) + 2;
+    if (chartContent) {
       chartContent.style.width = w + 'px';
       chartContent.style.minWidth = w + 'px';
+    }
+    if (timelineCont) {
       timelineCont.style.width = w + 'px';
       timelineCont.style.minWidth = w + 'px';
+    }
+    if (proxyInner) {
       proxyInner.style.width = w + 'px';
-      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
     }
-    
-    if (viewConfig.type === 'hour') {
-      const visible = parseInt(viewConfig.preset.replace('h', ''));
-      const pxPerHour = viewportW() / visible;
-      const contentW = 24 * pxPerHour;
-      applyW(contentW);
-      chartScroll.style.overflowX = (visible === 24) ? 'hidden' : 'auto';
-      proxyScroll.style.display = (visible === 24) ? 'none' : 'block';
-    } else if (viewConfig.type === 'week') {
-      const days = (viewConfig.preset === 'full') ? 7 : 5;
-      const pxPerDay = viewportW() / days;
-      const contentW = days * pxPerDay;
-      applyW(contentW);
-      chartScroll.style.overflowX = 'hidden';
-      proxyScroll.style.display = 'none';
-      chartScroll.scrollLeft = 0;
-      timelineScroll.scrollLeft = 0;
-    } else if (viewConfig.type === 'month') {
-      const dim = getDaysInMonth(viewConfig.selectedDate);
-      const visible = (viewConfig.preset === 'full') ? dim : Number(viewConfig.preset);
-      const pxPerDay = viewportW() / visible;
-      const contentW = dim * pxPerDay;
-      applyW(contentW);
-      chartScroll.style.overflowX = (visible < dim) ? 'auto' : 'hidden';
-      proxyScroll.style.display = (visible < dim) ? 'block' : 'none';
-    }
-    
+    document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
+  };
+
+  const clampScroll = () => {
     requestAnimationFrame(() => {
-      const maxChart = chartScroll.scrollWidth - chartScroll.clientWidth;
-      const maxProxy = proxyScroll.scrollWidth - proxyScroll.clientWidth;
-      chartScroll.scrollLeft = Math.max(0, Math.min(chartScroll.scrollLeft, maxChart));
-      proxyScroll.scrollLeft = Math.max(0, Math.min(proxyScroll.scrollLeft, maxProxy));
+      const chartScroll = document.getElementById('gantt-chart-scroll');
+      const proxyScroll = document.getElementById('gantt-hscroll-proxy');
+      
+      if (chartScroll && proxyScroll) {
+        const maxC = chartScroll.scrollWidth - chartScroll.clientWidth;
+        const maxP = proxyScroll.scrollWidth - proxyScroll.clientWidth;
+        chartScroll.scrollLeft = Math.max(0, Math.min(chartScroll.scrollLeft, maxC));
+        proxyScroll.scrollLeft = Math.max(0, Math.min(proxyScroll.scrollLeft, maxP));
+      }
     });
+  };
+
+  // Layout calculators
+  const layoutHour = () => {
+    const visible = parseInt(viewConfig.preset.replace('h', ''));
+    const newTotalUnits = 24;
+    const newPxPerUnit = vw() / visible;
     
-    // Update debug info
+    setTotalUnits(newTotalUnits);
+    setPxPerUnit(newPxPerUnit);
+    applyW(newTotalUnits * newPxPerUnit);
+    
+    const chartScroll = document.getElementById('gantt-chart-scroll');
+    const proxyScroll = document.getElementById('gantt-hscroll-proxy');
+    
+    const noScroll = visible === 24;
+    if (chartScroll) {
+      chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
+    }
+    if (proxyScroll) {
+      proxyScroll.style.display = noScroll ? 'none' : 'block';
+    }
+  };
+
+  const layoutWeek = () => {
+    const days = (viewConfig.preset === 'full') ? 7 : 5;
+    const newTotalUnits = days;
+    const newPxPerUnit = vw() / days;
+    
+    setTotalUnits(newTotalUnits);
+    setPxPerUnit(newPxPerUnit);
+    applyW(days * newPxPerUnit);
+    
+    const chartScroll = document.getElementById('gantt-chart-scroll');
+    const timelineScroll = document.getElementById('gantt-timeline-scroll');
+    const proxyScroll = document.getElementById('gantt-hscroll-proxy');
+    
+    if (chartScroll) {
+      chartScroll.style.overflowX = 'hidden';
+      chartScroll.scrollLeft = 0;
+    }
+    if (timelineScroll) {
+      timelineScroll.scrollLeft = 0;
+    }
+    if (proxyScroll) {
+      proxyScroll.style.display = 'none';
+    }
+  };
+
+  const layoutMonth = () => {
+    const anchor = startOfDay(viewConfig.selectedDate);
+    const dim = daysInMonth(anchor);
+    const vis = (viewConfig.preset === 'full' || Number(viewConfig.preset) === dim) ? dim : Number(viewConfig.preset);
+    const newTotalUnits = dim;
+    const newPxPerUnit = vw() / vis;
+    
+    setTotalUnits(newTotalUnits);
+    setPxPerUnit(newPxPerUnit);
+    applyW(dim * newPxPerUnit);
+    
+    const chartScroll = document.getElementById('gantt-chart-scroll');
+    const proxyScroll = document.getElementById('gantt-hscroll-proxy');
+    
+    const scrollable = vis < dim;
+    if (chartScroll) {
+      chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
+    }
+    if (proxyScroll) {
+      proxyScroll.style.display = scrollable ? 'block' : 'none';
+    }
+  };
+
+  // Public entry: recompute everything
+  const recomputeLayout = () => {
+    if (viewConfig.type === 'hour') layoutHour();
+    if (viewConfig.type === 'week') layoutWeek();
+    if (viewConfig.type === 'month') layoutMonth();
+    clampScroll();
+    
     const dbg = document.getElementById('dbg');
     if (dbg) {
-      if (viewConfig.type === 'hour') {
-        const visible = parseInt(viewConfig.preset.replace('h', ''));
-        const viewportWidth = viewportW();
-        dbg.textContent = `Hour preset=${viewConfig.preset} • vw=${viewportWidth.toFixed(2)} • contentW=${chartScroll.scrollWidth}px • clientW=${chartScroll.clientWidth}px • max=${chartScroll.scrollWidth - chartScroll.clientWidth}px`;
-      } else {
+      const chartScroll = document.getElementById('gantt-chart-scroll');
+      if (chartScroll) {
         const maxScroll = chartScroll.scrollWidth - chartScroll.clientWidth;
-        dbg.textContent = `view=${viewConfig.type} • preset=${viewConfig.preset} • vw=${viewportW().toFixed(1)}px • contentW=${chartScroll.scrollWidth}px • maxScroll=${maxScroll}px`;
+        dbg.textContent = `view=${viewConfig.type} preset=${viewConfig.preset} vw=${vw().toFixed(2)} px/u=${pxPerUnit.toFixed(4)} content=${chartScroll.scrollWidth}px max=${maxScroll}px`;
       }
     }
   };
 
-  // Sync scrolling between timeline, chart, and proxy
+  // Scroll synchronization
   useEffect(() => {
     let syncing = false;
     
-    const timelineScroller = timelineScrollRef.current;
-    const chartScroller = chartScrollRef.current;
-    const proxyScroller = document.getElementById('gantt-hscroll-proxy');
-    
-    if (!timelineScroller || !chartScroller || !proxyScroller) return;
-    
-    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement) {
+    const sync = (from: HTMLElement, a: HTMLElement, b: HTMLElement) => {
       if (syncing) return;
       syncing = true;
       a.scrollLeft = from.scrollLeft;
       b.scrollLeft = from.scrollLeft;
-      setScrollLeft(from.scrollLeft);
       syncing = false;
-    }
+    };
     
-    const syncFromProxy = () => sync(proxyScroller, chartScroller, timelineScroller);
-    const syncFromChart = () => sync(chartScroller, proxyScroller, timelineScroller);
-    const syncFromTimeline = () => sync(timelineScroller, proxyScroller, chartScroller);
+    const proxyScroll = document.getElementById('gantt-hscroll-proxy');
+    const chartScroll = document.getElementById('gantt-chart-scroll');
+    const timelineScroll = document.getElementById('gantt-timeline-scroll');
     
-    proxyScroller.addEventListener('scroll', syncFromProxy, { passive: true });
-    chartScroller.addEventListener('scroll', syncFromChart, { passive: true });
-    timelineScroller.addEventListener('scroll', syncFromTimeline, { passive: true });
+    if (!proxyScroll || !chartScroll || !timelineScroll) return;
+    
+    const syncFromProxy = () => sync(proxyScroll, chartScroll, timelineScroll);
+    const syncFromChart = () => sync(chartScroll, proxyScroll, timelineScroll);
+    const syncFromTimeline = () => sync(timelineScroll, proxyScroll, chartScroll);
+    
+    proxyScroll.addEventListener('scroll', syncFromProxy, { passive: true });
+    chartScroll.addEventListener('scroll', syncFromChart, { passive: true });
+    timelineScroll.addEventListener('scroll', syncFromTimeline, { passive: true });
     
     return () => {
-      proxyScroller.removeEventListener('scroll', syncFromProxy);
-      chartScroller.removeEventListener('scroll', syncFromChart);
-      timelineScroller.removeEventListener('scroll', syncFromTimeline);
+      proxyScroll.removeEventListener('scroll', syncFromProxy);
+      chartScroll.removeEventListener('scroll', syncFromChart);
+      timelineScroll.removeEventListener('scroll', syncFromTimeline);
     };
   }, []);
 
-  // Update content widths when view config changes or container resizes
+  // Recompute on view/preset/date changes
   useEffect(() => {
-    updateContentWidths();
+    recomputeLayout();
   }, [viewConfig, containerWidth]);
 
   // ResizeObserver for container width changes
@@ -244,6 +319,8 @@ const GanttChart: React.FC = () => {
                   containerWidth={containerWidth}
                   onScroll={handleScroll}
                   scrollLeft={scrollLeft}
+                  pxPerUnit={pxPerUnit}
+                  totalUnits={totalUnits}
                 />
               </div>
             </div>
@@ -271,6 +348,8 @@ const GanttChart: React.FC = () => {
                 scrollLeft={scrollLeft}
                 onTaskUpdate={handleTaskUpdate}
                 onTaskMove={handleTaskMove}
+                pxPerUnit={pxPerUnit}
+                totalUnits={totalUnits}
               />
             </div>
           </div>
