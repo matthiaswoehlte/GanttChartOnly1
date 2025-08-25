@@ -9,7 +9,11 @@ html, body, #root, #gantt-root {
   height: 100%;
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
+
+/* Apply box-sizing globally */
+* { box-sizing: border-box; }
 
 /* Gantt Chart Layout */
 #gantt-root {
@@ -47,6 +51,81 @@ html, body, #root, #gantt-root {
   width: 20%;
   overflow-x: hidden;
   border-right: 1px solid #374151;
+}
+
+/* Ensure no double divider */
+#gantt-chart-scroll {
+  border-left: 0;
+}
+
+/* Zero-offset: scrollable contents must start at x=0 */
+#gantt-timeline-content,
+#gantt-chart-content {
+  position: relative;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  transform: none;
+}
+
+/* Header overlay line aligned to table width */
+#gantt-header-grid { 
+  position: relative; 
+}
+
+#gantt-header-vrule {
+  position: absolute;
+  left: var(--gantt-table-w, 0px);
+  top: 0; 
+  bottom: 0;
+  width: 1px;
+  background: #374151;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Controls: single row, same height, vertically centered */
+#gantt-controls {
+  display: flex; 
+  flex-wrap: wrap; 
+  align-items: center; 
+  gap: 12px;
+}
+
+#gantt-controls .ctrl { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+}
+
+#gantt-controls select,
+#gantt-controls input[type="month"],
+#gantt-controls input[type="date"] {
+  height: 32px; 
+  line-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #4B5563; 
+  border-radius: 6px;
+  background: #111827; 
+  color: #E5E7EB;
+  appearance: none; 
+  -webkit-appearance: none;
+  vertical-align: middle;
+}
+
+#gantt-controls label { 
+  font-size: 0.9rem; 
+  color: #cbd5e1; 
+}
+
+/* Timeline tick positioning */
+.gantt-tick--first { 
+  transform: translateX(0) !important; 
+  text-align: left; 
+}
+
+.gantt-tick--last { 
+  transform: translateX(-100%) !important; 
+  text-align: right; 
 }
 
 #gantt-chart-scroll {
