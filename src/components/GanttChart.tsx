@@ -942,145 +942,52 @@ const GanttChart: React.FC = () => {
 
   // Deterministic scale system
   useEffect(() => {
-    (function GanttDeterministicScale(){
-      const IDS = {
-        chartScroll:  'gantt-chart-scroll',
-        chartContent: 'gantt-chart-content',
-        timeScroll:   'gantt-timeline-scroll',
-        timeContent:  'gantt-timeline-content',
-      };
+    (function(){
+      // Globale API
+      window.ganttApplyScale = function(view, presetLabel, anchorDate){
+        const cs = document.getElementById('gantt-chart-scroll');   // Bars-Scroller (Viewport)
+        const cc = document.getElementById('gantt-chart-content');  // Bars-Content
+        const ts = document.getElementById('gantt-timeline-scroll'); // Timeline-Scroller
+        const tc = document.getElementById('gantt-timeline-content'); // Timeline-Content
+        if (!cs || !cc || !ts || !tc) return false;
 
-      function el(id){ return document.getElementById(id); }
-
-      // ---- public API: aufrufen nach jedem View/Preset/Monatswechsel ----
-      window.ganttApplyScale = function ganttApplyScale(view, presetLabel, anchorDate){
-        const cs = el(IDS.chartScroll);
-        const cc = el(IDS.chartContent);
-        const ts = el(IDS.timeScroll);
-        const tc = el(IDS.timeContent);
-        if (!cs || !cc || !ts || !tc) return;
-
-        // 1) Total/Visible bestimmen
+        // 1) Total/Visible Einheiten bestimmen
         let totalUnits = 24, visibleUnits = 24;
         if (/^hour/i.test(view)) {
-          const v = parseInt(String(presetLabel).match(/(\d+)/)?.[1]||'24',10);
+          const v = parseInt(String(presetLabel).match(/\d+/)?.[0] || '24', 10);
+          visibleUnits = Math.min(24, Math.max(1, v)); // 4|6|12|18|24
           totalUnits   = 24;
-          visibleUnits = Math.max(1, Math.min(24, v));        // 4|6|12|18|24
         } else if (/^month/i.test(view)) {
-          const base = anchorDate instanceof Date ? anchorDate : new Date();
-          const y = base.getFullYear(), m = base.getMonth();
-          totalUnits   = new Date(y, m+1, 0).getDate();       // 28..31
-          visibleUnits = /14/.test(presetLabel) ? 14 : /7/.test(presetLabel) ? 7 : totalUnits;
+          const d = anchorDate instanceof Date ? anchorDate : new Date();
+          const dim = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+          totalUnits = dim;
+          visibleUnits = /14/.test(presetLabel) ? 14 : /7/.test(presetLabel) ? 7 : dim;
         } else if (/^week/i.test(view)) {
-          // Week ist voll sichtbar, keine H-Scrollbar
           const work = /work/i.test(presetLabel);
-          totalUnits = visibleUnits = work ? 5 : 7;
+          totalUnits = visibleUnits = work ? 5 : 7; // volle Sichtbarkeit, keine H-Scroll
         }
 
-        // 2) pxPerUnit deterministisch aus dem aktuellen Viewport berechnen
-        const viewport = cs.clientWidth;                       // sichtbare Pixelbreite
+        // 2) Skala aus Viewport berechnen: Breite = Viewport * (total/visible)
+        const viewport = cs.clientWidth || 0;
         const pxPerUnit = viewport / Math.max(1, visibleUnits);
-        const contentPx = Math.round(pxPerUnit * totalUnits);  // Gesamtbreite exakt
+        const contentPx = Math.round(pxPerUnit * totalUnits);
 
-        // 3) Breiten beider Content-Ebenen identisch setzen (keine +2px Nudges)
-        [cc, tc].forEach(node => {
-          node.style.width    = contentPx + 'px';
-          node.style.minWidth = contentPx + 'px';
-          node.style.transform = 'none';
-          node.style.boxSizing = 'border-box';
+        // 3) Exakt identische Breite setzen (keine Nudges)
+        [cc, tc].forEach(n => {
+          n.style.width = contentPx + 'px';
+          n.style.minWidth = contentPx + 'px';
+          n.style.transform = 'none';
+          n.style.boxSizing = 'border-box';
         });
 
-        // 4) Skala global speichern (optional für Bars/Timeline-Renderer)
-        window.__ganttScale = { view, totalUnits, visibleUnits, pxPerUnit, contentPx };
-
-        // 5) Scrollbereich korrekt begrenzen und Timeline an Bars ausrichten
+        // 4) Scrollbereich korrekt begrenzen + Timeline an Bars angleichen
         const max = Math.max(0, contentPx - viewport);
         if (cs.scrollLeft > max) cs.scrollLeft = max;
-        ts.scrollLeft = cs.scrollLeft;  // einseitig: Bars -> Timeline
+        ts.scrollLeft = cs.scrollLeft;
 
-        // 6) Timeline neu zeichnen (nur Ticks/Labels, keine Layoutänderung)
-        renderTimelineTicks();
-
-        // ---- Hilfsfunktionen ----
-        function renderTimelineTicks(){
-          // Erwartung: Timeline-Renderer liest window.__ganttScale
-          const scale = window.__ganttScale;
-          if (!scale) return;
-          const root = tc;
-          root.innerHTML = '';
-          if (/^hour/i.test(view)) {
-            renderHour(root, scale);
-          } else if (/^month/i.test(view)) {
-            renderMonth(root, scale, anchorDate);
-          } else {
-            // Week: voll sichtbar -> einfache Tageslabels zentriert
-            renderWeek(root, /work/i.test(presetLabel));
-          }
-        }
-
-        function renderHour(root, {pxPerUnit, totalUnits, contentPx}){
-          for (let h=0; h<=totalUnits; h++){
-            const x = Math.round(h * pxPerUnit);
-            const line = document.createElement('div');
-            line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
-            root.appendChild(line);
-          }
-          for (let h=0; h<totalUnits; h++){
-            const x = Math.round(h*pxPerUnit + pxPerUnit/2);
-            if (x < contentPx){
-              const minor = document.createElement('div');
-              minor.style.cssText = `position:absolute;left:${x}px;top:0;height:50%;width:1px;background:#475569;`;
-              root.appendChild(minor);
-            }
-          }
-          for (let h=0; h<=totalUnits; h++){
-            const x = Math.round(h * pxPerUnit);
-            const lab = document.createElement('div');
-            lab.textContent = String(h).padStart(2,'0');
-            lab.style.cssText = `position:absolute;top:4px;left:${x}px;white-space:nowrap;font-size:12px;color:#cbd5e1;`;
-            lab.style.transform = (h===0) ? 'translateX(0)' : (h===totalUnits ? 'translateX(-100%)' : 'translateX(-50%)');
-            root.appendChild(lab);
-          }
-        }
-
-        function renderMonth(root, {pxPerUnit, totalUnits, contentPx}, base){
-          const y = base.getFullYear(), m = base.getMonth();
-          // Linien an Tagesgrenzen 0..total
-          for (let d=0; d<=totalUnits; d++){
-            const x = Math.round(d * pxPerUnit);
-            const line = document.createElement('div');
-            line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
-            root.appendChild(line);
-          }
-          // Tagesnummern zentriert
-          for (let d=1; d<=totalUnits; d++){
-            const cx = Math.round((d-0.5) * pxPerUnit);
-            const lab = document.createElement('div');
-            lab.textContent = String(d);
-            lab.style.cssText = `position:absolute;top:4px;left:${cx}px;transform:translateX(-50%);white-space:nowrap;font-size:12px;color:#cbd5e1;`;
-            root.appendChild(lab);
-          }
-        }
-
-        function renderWeek(root, work){
-          const days = work ? 5 : 7;
-          const w = ts.clientWidth;
-          const cell = w / days;
-          for (let d=0; d<=days; d++){
-            const x = Math.round(d * cell);
-            const line = document.createElement('div');
-            line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
-            root.appendChild(line);
-          }
-          const names = work ? ['Mon','Tue','Wed','Thu','Fri'] : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-          for (let i=0;i<names.length;i++){
-            const cx = Math.round((i+0.5)*cell);
-            const lab = document.createElement('div');
-            lab.textContent = names[i];
-            lab.style.cssText = `position:absolute;top:4px;left:${cx}px;transform:translateX(-50%);white-space:nowrap;font-size:12px;color:#cbd5e1;`;
-            root.appendChild(lab);
-          }
-        }
+        // Debug
+        window.__ganttScale = { view, presetLabel, totalUnits, visibleUnits, pxPerUnit, contentPx, viewport, maxScroll:max };
+        return true;
       };
     })();
   }, []);
