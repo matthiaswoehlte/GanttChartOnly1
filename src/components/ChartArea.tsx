@@ -91,7 +91,7 @@ const ChartArea: React.FC<ChartAreaProps> = ({
     }
   };
   return (
-    <div id="gantt-chart-content" style={{ width: totalUnits * pxPerUnit }}>
+    <div id="gantt-chart-content">
       {resources.map((resource, rowIndex) => {
         const resourceTasks = tasks.filter(task => 
           task.resourceId === resource.id && isTaskVisible(task)
@@ -100,12 +100,9 @@ const ChartArea: React.FC<ChartAreaProps> = ({
         return (
           <div 
             key={resource.id}
-            className={`gantt-row ${
-              rowIndex % 2 === 0 ? 'even' : 'odd'
-            }`}
+            className="gantt-row"
             data-row={rowIndex}
           >
-            <div className="gantt-row-track border-b border-gray-600" data-gantt-x0></div>
             <div className="gantt-row-bars">
               {resourceTasks.map(task => {
                 const x = Math.max(0, timeToX(task.startDate));
@@ -114,20 +111,18 @@ const ChartArea: React.FC<ChartAreaProps> = ({
                 return (
                   <div
                     key={task.id}
-                    className="gantt-bar task-bar"
+                    className="gantt-bar"
                     style={{
                       left: `${x}px`,
                       width: `${w}px`,
                       backgroundColor: task.color,
-                      borderColor: task.color,
+                      borderColor: task.color
                     }}
                     title={`${task.title} (${task.startDate.toLocaleString()} - ${task.endDate.toLocaleString()})`}
                   >
-                    <div className="flex items-center justify-center h-full px-2">
-                      <span className="text-xs font-medium text-white truncate">
-                        {task.title}
-                      </span>
-                    </div>
+                    <span className="text-xs font-medium text-white truncate px-2 leading-8">
+                      {task.title}
+                    </span>
                   </div>
                 );
               })}

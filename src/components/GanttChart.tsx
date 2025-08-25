@@ -124,12 +124,6 @@ const GanttChart: React.FC = () => {
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
-    // G) CLEANUP — remove previous hacks
-    document.documentElement.style.removeProperty('--gantt-table-w');
-    document.documentElement.style.removeProperty('--gantt-header-shift');
-    document.documentElement.style.removeProperty('--gantt-xfix');
-    document.documentElement.style.removeProperty('--gantt-timeline-offset');
-    
     const chartScroll    = document.getElementById('gantt-chart-scroll');
     const chartContent   = document.getElementById('gantt-chart-content');
     const timelineScroll = document.getElementById('gantt-timeline-scroll');
@@ -161,10 +155,15 @@ const GanttChart: React.FC = () => {
     // width applier (must hit ALL THREE content nodes)
     function applySharedWidth(px: number){
       const w = Math.ceil(px) + 2;  // +2 px safety to guarantee last pixel
-      chartContent.style.width = chartContent.style.minWidth = w + 'px';
-      timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
-      proxyInner.style.width   = w + 'px';
-      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
+      if (chartContent) {
+        chartContent.style.width = chartContent.style.minWidth = w + 'px';
+      }
+      if (timelineCont) {
+        timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
+      }
+      if (proxyInner) {
+        proxyInner.style.width = w + 'px';
+      }
     }
     
     // Clamp & realign after EVERY recompute

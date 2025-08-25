@@ -1,17 +1,6 @@
 /* Gantt Chart Styles */
 
-/* A) Base font & reset (fix font fallback) */
-@supports (font-variation-settings: normal) {
-  html, body, button, input, select, textarea {
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-                 Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
-  }
-}
-html, body, #root, #gantt-root { height: 100%; }
-body { background:#0f172a; color:#e5e7eb; }
-* { box-sizing: border-box; }
-
-/* B) Layout tokens */
+/* Layout tokens */
 :root{
   --gantt-left-col: 20%;   /* resource table width */
   --gantt-row-h: 40px;
@@ -19,7 +8,15 @@ body { background:#0f172a; color:#e5e7eb; }
   --gantt-header-h: 92px;  /* header min height in flow */
 }
 
-/* C) Header in flow, not overlay; right column stacked controls + timeline */
+* { box-sizing: border-box; }
+html, body, #app, #gantt-root { height: 100%; }
+body { 
+  background: #0f172a; 
+  color: #e5e7eb; 
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Header in flow, not overlay; right column stacked controls + timeline */
 #gantt-root { display:flex; flex-direction:column; min-height:100%; }
 
 #gantt-header {
@@ -40,7 +37,7 @@ body { background:#0f172a; color:#e5e7eb; }
 
 #gantt-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 
-/* Timeline row: fixed height, no vertical squeeze */
+/* VISIBLE timeline row */
 #gantt-timeline-scroll{
   height: var(--gantt-timeline-h);
   overflow-x:auto; overflow-y:hidden;
@@ -49,11 +46,11 @@ body { background:#0f172a; color:#e5e7eb; }
 #gantt-timeline-scroll::-webkit-scrollbar{ display:none; }
 #gantt-timeline-content{
   height: var(--gantt-timeline-h);
-  margin: 0 !important; padding: 0 !important; transform: none !important;
   position: relative;
+  margin: 0 !important; padding: 0 !important; transform: none !important;
 }
 
-/* D) Body unter dem Header, dunkler Hintergrund, Spalten 20% / 80% */
+/* Body layout */
 #gantt-body-scroll{
   flex: 1 1 auto;
   overflow-y:auto; overflow-x:hidden;
@@ -75,38 +72,25 @@ body { background:#0f172a; color:#e5e7eb; }
   background:#0f172a;
 }
 
-/* Keine versteckten Gutters, die die Timeline nach rechts schieben */
+/* Remove hidden gutters that push content */
 #gantt-timeline-scroll, #gantt-timeline-content,
 #gantt-chart-scroll,    #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
 
-/* Reihenfärbung */
-.row{ height:var(--gantt-row-h); display:flex; align-items:center; }
-.row.even{ background:#1F2937; }
-.row.odd { background:#374151; }
-
-/* E) Z-Index & stacking contexts (Bars NIE hinter Controls) */
-#gantt-chart-scroll, #gantt-chart-content { position:relative; z-index: 1; }
-#gantt-header { z-index: 20; } /* höher als 1, aber im Flow → kein „darunter-kleben" der Bars */
-
-/* D) TIMELINE TICKS — consistent origin & labels */
-.gantt-tick--first{ transform:translateX(0)!important; text-align:left; }
-.gantt-tick--last { transform:translateX(-100%)!important; text-align:right; }
-
-/* Gantt row structure for bars inside rows */
+/* Alternating rows IN THE CHART BODY */
 #gantt-chart-content{ position:relative; }  /* but NOT the bars container */
 .gantt-row{
   position: relative;
   height: var(--gantt-row-h);
   display: block;
+  /* alternating background */
+  background: #1F2937;
 }
-.gantt-row-track{      /* the dark strip background, optional x0 marker */
-  position:absolute; inset:0;
-  pointer-events:none;
-}
-.gantt-row-bars{       /* THIS is where bars live, per-row */
+.gantt-row:nth-child(odd) { background: #374151; }
+
+/* Bars live inside each row */
+.gantt-row-bars{
   position: relative;  /* NOT absolute; keeps bars local */
   height: 100%;
-  overflow: visible;
 }
 .gantt-bar{
   position: absolute;  /* left & width in px, top = row padding */
@@ -115,11 +99,18 @@ body { background:#0f172a; color:#e5e7eb; }
   border-radius: 6px;
 }
 
-/* remove any global absolute overlay for all bars */
-#all-bars-overlay, .bars-overlay, .gantt-bars-overlay { display:none !important; }
+/* Resource table rows */
+.row{ height:var(--gantt-row-h); display:flex; align-items:center; }
+.row.even{ background:#1F2937; }
+.row.odd { background:#374151; }
 
-/* ROW HEIGHT SYNC — table & chart must use the SAME --gantt-row-h */
-#gantt-table-left .row, #gantt-chart-content .gantt-row{ height: var(--gantt-row-h); }
+/* Tick label helpers (to avoid edge clipping) */
+.gantt-tick--first{ transform:translateX(0)!important; text-align:left; }
+.gantt-tick--last { transform:translateX(-100%)!important; text-align:right; }
+
+/* Z-Index & stacking contexts */
+#gantt-chart-scroll, #gantt-chart-content { position:relative; z-index: 1; }
+#gantt-header { z-index: 20; }
 
 /* Task bar styles */
 .task-bar {
