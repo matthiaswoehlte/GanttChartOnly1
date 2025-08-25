@@ -632,6 +632,168 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Timeline DOM protection and restoration
+  useEffect(() => {
+    (function ensureTimelineDom(){
+      // Header-Rechts als Host
+      let host = document.getElementById('gantt-header-right')
+               || document.querySelector('#gantt-header-grid > :nth-child(2)');
+      if(!host) return null;
+
+      // Scroller
+      let sc = document.getElementById('gantt-timeline-scroll');
+      if(!sc){
+        sc = document.createElement('div');
+        sc.id = 'gantt-timeline-scroll';
+        sc.style.overflowX = 'auto';
+        sc.style.overflowY = 'hidden';
+        sc.style.width = '100%';
+        host.appendChild(sc);
+      }
+
+      // Content
+      let ct = document.getElementById('gantt-timeline-content');
+      if(!ct){
+        ct = document.createElement('div');
+        ct.id = 'gantt-timeline-content';
+        ct.style.position = 'relative';
+        ct.style.height = '48px';
+        sc.appendChild(ct);
+      }
+      // Sicherstellen, dass er sichtbar bleibt
+      ct.style.position = 'relative';
+      ct.style.height = ct.style.height || '48px';
+      return { scroller: sc, content: ct };
+    })();
+
+    // Render: Stunde 0..24 inkl. Rand bei exakt x = contentWidth
+    window.renderHourTimelineFixed = function renderHourTimelineFixed(pxPerHour, contentWidthPx){
+      const host = document.getElementById('gantt-header-right')
+                || document.querySelector('#gantt-header-grid > :nth-child(2)');
+      if(!host) return;
+
+      let sc = document.getElementById('gantt-timeline-scroll');
+      if(!sc){
+        sc = document.createElement('div');
+        sc.id = 'gantt-timeline-scroll';
+        sc.style.overflowX = 'auto';
+        sc.style.overflowY = 'hidden';
+        sc.style.width = '100%';
+        host.appendChild(sc);
+      }
+
+      let ct = document.getElementById('gantt-timeline-content');
+      if(!ct){
+        ct = document.createElement('div');
+        ct.id = 'gantt-timeline-content';
+        ct.style.position = 'relative';
+        ct.style.height = '48px';
+        sc.appendChild(ct);
+      }
+      ct.style.position = 'relative';
+      ct.style.height = ct.style.height || '48px';
+
+      const root = ct;
+      const W = Math.max(0, Math.round(contentWidthPx));
+      const TOTAL = 24;
+
+      // Breite setzen (damit es wirklich scrollt)
+      root.style.width = W + 'px';
+      root.style.minWidth = W + 'px';
+
+      // Inhalt neu aufbauen
+      root.textContent = '';
+      // Major ticks 0..24
+      for(let h=0; h<=TOTAL; h++){
+        const x = Math.round(h * pxPerHour);
+        const line = document.createElement('div');
+        line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
+        root.appendChild(line);
+      }
+      // Minor ticks (Halbstunden), nur innerhalb [0, W)
+      for(let h=0; h<TOTAL; h++){
+        const x = Math.round(h*pxPerHour + pxPerHour/2);
+        if(x>=0 && x<W){
+          const m = document.createElement('div');
+          m.style.cssText = `position:absolute;left:${x}px;top:0;height:50%;width:1px;background:#475569;`;
+          root.appendChild(m);
+        }
+      }
+      // Labels: 0 linksbündig, 24 rechtsbündig, dazwischen mittig
+      for(let h=0; h<=TOTAL; h++){
+        const x = Math.round(h * pxPerHour);
+        const lab = document.createElement('div');
+        lab.textContent = String(h).padStart(2,'0');
+        lab.style.position = 'absolute';
+        lab.style.top = '4px';
+        lab.style.left = x + 'px';
+        lab.style.whiteSpace = 'nowrap';
+        if(h===0){ lab.style.transform = 'translateX(0)'; }
+        else if(h===TOTAL){ lab.style.transform = 'translateX(-100%)'; }
+        else { lab.style.transform = 'translateX(-50%)'; }
+        root.appendChild(lab);
+      }
+    };
+
+    // Breite aus Bars übernehmen und Scroll-Sync Bars -> Timeline setzen
+    (function restoreTimeline(){
+      const host = document.getElementById('gantt-header-right')
+                || document.querySelector('#gantt-header-grid > :nth-child(2)');
+      if(!host) return;
+
+      let sc = document.getElementById('gantt-timeline-scroll');
+      if(!sc){
+        sc = document.createElement('div');
+        sc.id = 'gantt-timeline-scroll';
+        sc.style.overflowX = 'auto';
+        sc.style.overflowY = 'hidden';
+        sc.style.width = '100%';
+        host.appendChild(sc);
+      }
+
+      let ct = document.getElementById('gantt-timeline-content');
+      if(!ct){
+        ct = document.createElement('div');
+        ct.id = 'gantt-timeline-content';
+        ct.style.position = 'relative';
+        ct.style.height = '48px';
+        sc.appendChild(ct);
+      }
+      ct.style.position = 'relative';
+      ct.style.height = ct.style.height || '48px';
+
+      const tl = { scroller: sc, content: ct };
+
+      const chartScroll  = document.getElementById('gantt-chart-scroll');
+      const chartContent = document.getElementById('gantt-chart-content');
+      if(!chartScroll || !chartContent) return;
+
+      // Content-Breiten angleichen: Timeline = Bars
+      const W = parseInt(chartContent.style.width||0,10) || chartContent.scrollWidth || chartContent.clientWidth;
+      if(W>0){
+        tl.content.style.width = W + 'px';
+        tl.content.style.minWidth = W + 'px';
+        // px/h exakt aus Contentbreite ableiten
+        const pxPerHour = W / 24;
+        if (window.renderHourTimelineFixed) {
+          window.renderHourTimelineFixed(pxPerHour, W);
+        }
+      }
+
+      // Einseitiger Scroll-Sync (idempotent)
+      if(!chartScroll.__ganttSyncBound){
+        chartScroll.__ganttSyncBound = true;
+        chartScroll.addEventListener('scroll', () => {
+          if (tl.scroller.scrollLeft !== chartScroll.scrollLeft) {
+            tl.scroller.scrollLeft = chartScroll.scrollLeft;
+          }
+        }, { passive:true });
+        // initiale Ausrichtung
+        requestAnimationFrame(()=>{ tl.scroller.scrollLeft = chartScroll.scrollLeft; });
+      }
+    })();
+  }, []);
+
   // Timeline rendering functions
   useEffect(() => {
     // Pure JS renderers for Hour and Month views
