@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Timeline offset tuning */
+/* Single source of truth for column split */
 :root {
-  --gantt-timeline-offset: -26px;  /* negative -> shift left by 26px */
+  --gantt-left-col: 20%;
 }
 
 /* box model */
@@ -21,91 +21,6 @@ html, body, #root, #gantt-root {
 /* Apply box-sizing globally */
 * { box-sizing: border-box; }
 
-/* The whole timeline content can be nudged by a CSS var */
-#gantt-timeline-content { position:relative; transform: translateX(var(--gantt-xfix, 0px)); }
-
-/* No hidden left padding/margins on scrollers/contents */
-#gantt-timeline-scroll, #gantt-timeline-content,
-#gantt-chart-scroll,    #gantt-chart-content {
-  padding-left: 0 !important;
-  margin-left: 0 !important;
-}
-
-/* Only the table draws the divider (avoid double lines) */
-#gantt-chart-scroll { border-left:0; }
-#gantt-table-left   { border-right:1px solid #374151; }
-
-/* (Edge labels helpers) */
-.gantt-tick--first { transform: translateX(0) !important; text-align:left; }
-.gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
-
-/* single divider lives on the TABLE ONLY */
-
-/* Header grid uses EXACTLY the table width from a CSS var we set in JS */
-#gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
-#gantt-header-grid {
-  display: grid;
-  /* linke Spalte exakt = Tabellenbreite (setzen wir in JS als CSS-Var) */
-  grid-template-columns: var(--gantt-table-w, 280px) 1fr;
-  column-gap: 0;
-  padding-left: 0;   /* WICHTIG: keine linke Innenkante im Grid */
-  padding-right: 16px;
-  padding-top: 12px;
-  padding-bottom: 4px;
-  align-items: center;
-}
-
-/* Titel links soft einrücken, aber NICHT über den linken Rand hinausragen */
-#gantt-title { padding-left: 12px; }
-
-/* Rechte Header-Spalte (Controls + Timeline) kann feinjustiert verschoben werden */
-#gantt-header-chart {
-  position: relative;
-  transform: translateX(var(--gantt-header-shift, 0px)); /* wird in JS gesetzt */
-}
-
-/* controls stay on one row */
-#gantt-controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-#gantt-controls .ctrl { display:flex; align-items:center; gap:6px; }
-#gantt-controls select,
-#gantt-controls input[type="month"],
-#gantt-controls input[type="date"] {
-  height:32px; line-height:32px; padding:0 10px; border:1px solid #4B5563; border-radius:6px;
-  background:#111827; color:#E5E7EB; appearance:none; -webkit-appearance:none;
-}
-
-/* timeline & chart contents must start at x=0 (no left padding/margins) */
-#gantt-timeline-scroll, #gantt-chart-scroll { padding-left:0; }
-#gantt-timeline-content, #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
-
-/* Timeline content can be nudged by CSS var --gantt-x0 (default 0) */
-#gantt-timeline-content {
-  position: relative;
-  transform: translateX(var(--gantt-timeline-offset));
-}
-
-/* The zero anchor marks x=0 for measurement */
-#gantt-timeline-zero {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 0;           /* no visual width */
-  pointer-events: none;
-}
-
-#gantt-chart-content {
-  transform: none;
-}
-
-/* header overlay: draw the same divider in the header for easy visual check */
-#gantt-header-vrule {
-  position:absolute; left: var(--gantt-table-w, 280px); top:0; bottom:0;
-  width:1px; background:#374151; pointer-events:none; z-index:5;
-}
-
-/* first/last tick label alignment helpers */
-.gantt-tick--first { transform: translateX(0) !important; text-align:left; }
-.gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
-
 /* Gantt Chart Layout */
 #gantt-root {
   display: flex;
@@ -115,17 +30,48 @@ html, body, #root, #gantt-root {
   color: #e5e7eb;
 }
 
+#gantt-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15,23,42,.95);
+  border-bottom: 1px solid #374151;
+}
+
+#gantt-header-grid {
+  display: grid;
+  grid-template-columns: var(--gantt-left-col) 1fr;
+  column-gap: 0;
+  padding: 10px 16px 6px 0;
+}
+
+#gantt-title {
+  padding-left: 12px;
+}
+
 #gantt-body-scroll {
-  position: relative;
   flex: 1 1 auto;
-  overflow-y: auto;        /* ONLY vertical scrollbar lives here */
+  overflow-y: auto;
   overflow-x: hidden;
-  max-height: calc(100vh - var(--gantt-header-h, 88px) - var(--gantt-footer-h, 0px));
 }
 
 #gantt-body-row {
   display: flex;
   min-height: 100%;
+}
+
+#gantt-table-left {
+  flex: 0 0 var(--gantt-left-col);
+  width: var(--gantt-left-col);
+  overflow-x: hidden;
+  border-right: 1px solid #374151;
+}
+
+#gantt-chart-scroll {
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-left: 0;
 }
 
 /* Zero-offset: scrollable contents must start at x=0 */
@@ -134,7 +80,13 @@ html, body, #root, #gantt-root {
   position: relative;
   margin-left: 0 !important;
   padding-left: 0 !important;
-  transform: none;
+  transform: none !important;
+}
+
+#gantt-timeline-scroll {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  transform: none !important;
 }
 
 #gantt-controls label { font-size: 0.9rem; color: #cbd5e1; }
@@ -145,6 +97,15 @@ html, body, #root, #gantt-root {
   padding-bottom: 16px;
 }
 
+#gantt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+#gantt-controls .ctrl { display: flex; align-items: center; gap: 6px; }
+
 #gantt-timeline-scroll {
   overflow-x: auto;
   overflow-y: hidden;
@@ -153,6 +114,14 @@ html, body, #root, #gantt-root {
 }
 
 #gantt-timeline-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+#gantt-controls select,
+#gantt-controls input[type="month"],
+#gantt-controls input[type="date"] {
+  height: 32px; line-height: 32px; padding: 0 10px; border: 1px solid #4B5563; border-radius: 6px;
+  background: #111827; color: #E5E7EB; appearance: none; -webkit-appearance: none;
   display: none;     /* timeline scrollbar hidden */
 }
 
@@ -206,6 +175,10 @@ html, body, #root, #gantt-root {
   border-top: 1px solid #374151;
   padding: 8px 16px;
 }
+
+/* Tick helpers to avoid edge clipping */
+.gantt-tick--first { transform: translateX(0) !important; text-align: left; }
+.gantt-tick--last { transform: translateX(-100%) !important; text-align: right; }
 
 /* Row styling */
 .row {
