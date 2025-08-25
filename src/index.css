@@ -31,20 +31,23 @@ html, body, #root, #gantt-root {
 .gantt-tick--first { transform: translateX(0) !important; text-align:left; }
 .gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
 
-/* single divider lives on the TABLE ONLY */
+/* Single token = 20% of the viewport */
+:root { --gantt-left-col: 20vw; }
 
 /* Header grid uses EXACTLY the table width from a CSS var we set in JS */
 #gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
 
-:root { --gantt-left-col: 20%; }   /* keep the 20% split as-is */
-
+/* Header grid: first column = 20vw, no gaps */
 #gantt-header-grid {
   display: grid;
   grid-template-columns: var(--gantt-left-col) 1fr;  /* 20% / 80% */
-  column-gap: 0;
+  column-gap: 0 !important;
+  gap: 0 !important;
   align-items: center;
   position: relative;         /* anchor for vrule */
-  padding: 12px 16px 4px 16px;
+  padding: 12px 16px 4px 0;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
 }
 
 /* Make the title box only 40% as wide as its own (20%) column */
@@ -68,10 +71,11 @@ html, body, #root, #gantt-root {
   text-overflow: ellipsis;
 }
 
-/* Ensure the right header column starts immediately after the 20% boundary */
+/* Header right block starts exactly at the boundary (no left gutter) */
 #gantt-header-right {
-  padding-left: 0 !important;
+  grid-column: 2;
   margin-left: 0 !important;
+  padding-left: 0 !important;
   border-left: 1px solid #374151;   /* the vertical divider at the 20% boundary */
 }
 
@@ -137,6 +141,17 @@ html, body, #root, #gantt-root {
 #gantt-body-row {
   display: flex;
   min-height: 100%;
+}
+
+/* Body left table: fixed 20vw, same divider, no hidden gutters */
+#gantt-table-left {
+  box-sizing: border-box;
+  flex: 0 0 var(--gantt-left-col);
+  width: var(--gantt-left-col);
+  min-width: var(--gantt-left-col);
+  border-right: 1px solid #374151;  /* align visual divider with header */
+  margin-left: 0 !important;
+  padding-left: 0 !important;
 }
 
 /* Zero-offset: scrollable contents must start at x=0 */
