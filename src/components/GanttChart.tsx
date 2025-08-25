@@ -632,6 +632,86 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Timeline rendering functions
+  useEffect(() => {
+    // Pure JS renderers for Hour and Month views
+    window.renderHourTimeline = function(pxPerHour, contentWidthPx) {
+      const root = document.getElementById('gantt-timeline-content');
+      if (!root) return;
+      root.innerHTML = '';
+
+      const TOTAL = 24;
+      const W = Math.round(contentWidthPx ?? (pxPerHour * TOTAL));
+      const H = 48; // visual height area for ticks/labels
+
+      // major ticks at every hour, include BOTH ends: 0 and 24
+      for (let h = 0; h <= TOTAL; h++){
+        const x = Math.round(h * pxPerHour);
+        const line = document.createElement('div');
+        line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
+        root.appendChild(line);
+      }
+
+      // minor ticks at half hours (inside bounds only)
+      for (let h = 0; h < TOTAL; h++){
+        const x = Math.round(h * pxPerHour + pxPerHour / 2);
+        if (x >= 0 && x < W){
+          const minor = document.createElement('div');
+          minor.style.cssText = `position:absolute;left:${x}px;top:0;height:${H/2}px;width:1px;background:#475569;`;
+          root.appendChild(minor);
+        }
+      }
+
+      // labels: first at 0 (no shift), last at W (right aligned), middle centered
+      for (let h = 0; h <= TOTAL; h++){
+        const x = Math.round(h * pxPerHour);
+        const lab = document.createElement('div');
+        lab.className = 'gantt-tick--label';
+        lab.textContent = String(h).padStart(2,'0');
+        lab.style.position = 'absolute';
+        lab.style.top = '4px';
+        lab.style.left = x + 'px';
+        if (h === 0){
+          lab.style.transform = 'translateX(0)';              // align to left edge
+        } else if (h === TOTAL){
+          lab.style.transform = 'translateX(-100%)';          // align to right edge
+        } else {
+          lab.style.transform = 'translateX(-50%)';           // centered
+        }
+        root.appendChild(lab);
+      }
+    };
+
+    window.renderMonthTimeline = function(pxPerDay, daysInMonth, contentWidthPx) {
+      const root = document.getElementById('gantt-timeline-content');
+      if (!root) return;
+      root.innerHTML = '';
+
+      const TOTAL = daysInMonth;
+      const W = Math.round(contentWidthPx ?? (pxPerDay * TOTAL));
+
+      // grid lines at day edges 0..TOTAL (include right edge)
+      for (let d = 0; d <= TOTAL; d++){
+        const x = Math.round(d * pxPerDay);
+        const line = document.createElement('div');
+        line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
+        root.appendChild(line);
+      }
+
+      // day labels centered in cells 1..TOTAL
+      for (let d = 1; d <= TOTAL; d++){
+        const cx = Math.round((d - 0.5) * pxPerDay);
+        if (cx >= 0 && cx <= W){
+          const lab = document.createElement('div');
+          lab.className = 'gantt-tick--label';
+          lab.textContent = String(d);
+          lab.style.cssText = `position:absolute;top:4px;left:${cx}px;transform:translateX(-50%);`;
+          root.appendChild(lab);
+        }
+      }
+    };
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
