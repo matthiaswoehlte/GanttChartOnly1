@@ -180,7 +180,7 @@ html, body, #root, #gantt-root {
 }
 
 #gantt-timeline-scroll {
-  overflow-x: auto;
+  overflow-x: auto !important;
   overflow-y: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -188,6 +188,21 @@ html, body, #root, #gantt-root {
 
 #gantt-timeline-scroll::-webkit-scrollbar {
   display: none;     /* timeline scrollbar hidden */
+}
+
+#gantt-timeline-content {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  transform: none !important;
+}
+
+#gantt-chart-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+
+#gantt-chart-content {
+  transform: none !important;
 }
 
 #gantt-chart-scroll::-webkit-scrollbar {
