@@ -349,6 +349,36 @@ const GanttChart: React.FC = () => {
     };
   }, []);
 
+  // Wire timeline scroller to follow bar scroller
+  useEffect(() => {
+    (function syncTimelineToChart(){
+      const chart = document.getElementById('gantt-chart-scroll');
+      const time  = document.getElementById('gantt-timeline-scroll');
+      if (!chart || !time) return;
+
+      // Prevent duplicate binding if this code runs more than once
+      if (chart.__ganttSyncBound) return;
+      chart.__ganttSyncBound = true;
+
+      let lock = false;
+
+      function follow(){
+        if (lock) return;
+        lock = true;
+        // set only if different to avoid needless layout work
+        const sl = chart.scrollLeft;
+        if (time.scrollLeft !== sl) time.scrollLeft = sl;
+        lock = false;
+      }
+
+      // One-way: bars → timeline
+      chart.addEventListener('scroll', follow, { passive: true });
+
+      // Initial alignment after current layout tick
+      requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
+    })();
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
