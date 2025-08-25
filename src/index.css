@@ -48,7 +48,15 @@ html, body, #root, #gantt-root {
 /* Timeline content can be nudged by CSS var --gantt-x0 (default 0) */
 #gantt-timeline-content {
   position: relative;
-  transform: translateX(var(--gantt-x0, 0px));
+  transform: translateX(var(--gantt-xfix, 0px));
+}
+
+/* The zero anchor marks x=0 for measurement */
+#gantt-timeline-zero {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0;           /* no visual width */
+  pointer-events: none;
 }
 
 #gantt-chart-content {

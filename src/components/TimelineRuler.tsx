@@ -65,7 +65,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 transform: 'translateX(-100%)'
               }}
             >
-              24
+              {formatHour(24)}
             </div>
           </div>
         );
