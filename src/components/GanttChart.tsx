@@ -135,24 +135,15 @@ const GanttChart: React.FC = () => {
       return { totalUnits: 1, visibleUnits: 1 };
     }
 
-    let __ganttWidthPx = 0;
-    let __ganttApplyLock = false;
-
-    function ganttApplyContentWidth(px: number) {
+    // Set content width once (no observer loops)
+    function ganttSetContentWidth(px: number) {
+      const w = Math.max(0, Math.round(px));               // no nudge, no ceil+2
       const cc = document.getElementById('gantt-chart-content');
       const tc = document.getElementById('gantt-timeline-content');
-      const proxyInner = document.getElementById('gantt-hscroll-inner');
       if (!cc || !tc) return;
-      // epsilon guard to avoid needless writes
-      if (Math.abs(px - __ganttWidthPx) < 0.5) return;
-      __ganttApplyLock = true;
-      __ganttWidthPx = px;
-      const w = Math.max(0, Math.round(px));      // no +2px nudge
       cc.style.width = w + 'px';
       tc.style.width = w + 'px';
-      if (proxyInner) proxyInner.style.width = w + 'px';
       document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
-      __ganttApplyLock = false;
     }
 
     function ganttLayout(view: string, presetLabel: string, anchorDate: Date) {
@@ -162,7 +153,7 @@ const GanttChart: React.FC = () => {
       const viewport = scroller.clientWidth;                  // width of visible area
       const { totalUnits, visibleUnits } = ganttUnits(view, presetLabel, anchorDate);
       const contentPx = viewport * (totalUnits / Math.max(1, visibleUnits));
-      ganttApplyContentWidth(contentPx);
+      ganttSetContentWidth(contentPx);
       
       // Update React state
       setPxPerUnit(contentPx / totalUnits);
@@ -173,6 +164,8 @@ const GanttChart: React.FC = () => {
       scroller.style.overflowX = scrollable ? 'auto' : 'hidden';
       if (proxyScroll) {
         proxyScroll.style.display = scrollable ? 'block' : 'none';
+        const proxyInner = document.getElementById('gantt-hscroll-inner');
+        if (proxyInner) proxyInner.style.width = Math.round(contentPx) + 'px';
       }
       
       // Call timeline alignment after layout changes
@@ -194,7 +187,6 @@ const GanttChart: React.FC = () => {
     if (scroller) {
       let rafId = 0;
       const ro = new ResizeObserver(() => {
-        if (__ganttApplyLock) return;                // don't react to our own writes
         cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(() => {
           ganttLayout((window as any).__ganttView, (window as any).__ganttPreset, (window as any).__ganttAnchor || new Date());
@@ -267,41 +259,40 @@ const GanttChart: React.FC = () => {
 
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
-    // Scroll sync (unchanged, no loops)
-    (function sync() {
+    // One-way scroll sync (Bars → Timeline) + Wheel forwarding
+    (function wireGanttScrollSync() {
       const a = document.getElementById('gantt-chart-scroll');
       const b = document.getElementById('gantt-timeline-scroll');
       const proxy = document.getElementById('gantt-hscroll-proxy');
       if (!a || !b) return;
       
-      let lock = false;
-      const link = (from: HTMLElement, to: HTMLElement) => { 
-        if (lock) return; 
-        lock = true; 
-        to.scrollLeft = from.scrollLeft; 
-        lock = false; 
-      };
-      
+      // Bars -> Timeline (one-way, no feedback loop)
       a.addEventListener('scroll', () => {
-        link(a, b);
-        if (proxy) link(a, proxy);
+        b.scrollLeft = a.scrollLeft;
+        if (proxy) proxy.scrollLeft = a.scrollLeft;
       }, { passive: true });
       
-      b.addEventListener('scroll', () => {
-        link(b, a);
-        if (proxy) link(b, proxy);
-      }, { passive: true });
+      // Wheel/Trackpad over Timeline controls the Bars scroller
+      b.addEventListener('wheel', (e) => {
+        // horizontal delta or Shift+Scroll
+        if (e.shiftKey || Math.abs(e.deltaX) > 0) {
+          const dx = (Math.abs(e.deltaX) > 0 ? e.deltaX : e.deltaY);
+          a.scrollLeft += dx;
+          e.preventDefault();
+        }
+      }, { passive: false });
       
       if (proxy) {
         proxy.addEventListener('scroll', () => {
-          link(proxy, a);
-          link(proxy, b);
+          a.scrollLeft = proxy.scrollLeft;
+          b.scrollLeft = proxy.scrollLeft;
         }, { passive: true });
       }
       
-      requestAnimationFrame(() => { 
+      // Initial alignment (after view/preset switch)
+      requestAnimationFrame(() => {
         b.scrollLeft = a.scrollLeft; 
-        if (proxy) proxy.scrollLeft = a.scrollLeft;
+        if (proxy) proxy.scrollLeft = a.scrollLeft; 
       });
     })();
   }, []);
