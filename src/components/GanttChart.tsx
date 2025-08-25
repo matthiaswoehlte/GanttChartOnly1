@@ -874,52 +874,6 @@ const GanttChart: React.FC = () => {
     };
   }, []);
 
-  // Reset scroll handlers and bind clean one-way sync
-  useEffect(() => {
-    (function resetGanttScrollSync(){
-      function byId(id){ return document.getElementById(id); }
-      const chartOld = byId('gantt-chart-scroll');
-      const timeOld  = byId('gantt-timeline-scroll');
-      if(!chartOld || !timeOld) return;
-
-      // Clone to remove ALL attached listeners without changing DOM structure
-      function strip(el){
-        const clone = el.cloneNode(true);        // children copied, listeners dropped
-        el.parentNode.replaceChild(clone, el);
-        return clone;
-      }
-      const chart = strip(chartOld);
-      const time  = strip(timeOld);
-
-      // Guard: keep overflow enabled (no visual change intended)
-      chart.style.overflowX = chart.style.overflowX || 'auto';
-      time .style.overflowX = time .style.overflowX || 'auto';
-
-      // One clean, one-way sync: bars -> timeline
-      let ticking = false;
-      chart.addEventListener('scroll', () => {
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(() => {
-          const x = chart.scrollLeft;
-          if (time.scrollLeft !== x) time.scrollLeft = x;
-          ticking = false;
-        });
-      }, { passive:true });
-
-      // Initial alignment
-      requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
-
-      // Optional: expose a helper to re-run after hot reloads
-      window.__ganttRebindHSync = () => {
-        const c = byId('gantt-chart-scroll');
-        const t = byId('gantt-timeline-scroll');
-        if(!c || !t) return;
-        t.scrollLeft = c.scrollLeft;
-      };
-    })();
-  }, []);
-
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
