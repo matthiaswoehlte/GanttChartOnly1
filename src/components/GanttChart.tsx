@@ -147,35 +147,13 @@ const GanttChart: React.FC = () => {
     // shared state
     let pxPerUnit = 0, totalUnits = 0, visibleUnits = 0;  // unit = hour (Hour) or day (Week/Month)
 
-    // Width applier functions
-    function ganttApplyContentWidth(sharedWidthPx: number) {
-      const px = Math.ceil(sharedWidthPx) + 2;  // small nudge
-      const cc = document.getElementById('gantt-chart-content');
-      const tc = document.getElementById('gantt-timeline-content');
-      if (!cc || !tc) return;
-      cc.style.width = px + 'px';
-      tc.style.width = px + 'px';
-      document.documentElement.style.setProperty('--gantt-content-w', px + 'px');
-    }
-
-    function ganttApplyRatioWidth(pxPerUnit: number, totalUnits: number) {
-      ganttApplyContentWidth(pxPerUnit * totalUnits);
-    }
-
-    function ganttRecomputeWidth() {
-      const cc = document.getElementById('gantt-chart-content');
-      const tc = document.getElementById('gantt-timeline-content');
-      if (!cc || !tc) return;
-      const w = Math.max(cc.scrollWidth || cc.offsetWidth, tc.scrollWidth || tc.offsetWidth);
-      ganttApplyContentWidth(w);
-    }
-
-    // Legacy width applier (for proxy scroller)
+    // width applier (must hit ALL THREE content nodes)
     function applySharedWidth(px: number){
       const w = Math.ceil(px) + 2;  // +2 px safety to guarantee last pixel
+      chartContent.style.width = chartContent.style.minWidth = w + 'px';
+      timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
       proxyInner.style.width   = w + 'px';
-      // Use new width applier for chart and timeline
-      ganttApplyContentWidth(px);
+      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
     }
     
     // Clamp & realign after EVERY recompute
@@ -263,20 +241,12 @@ const GanttChart: React.FC = () => {
     // Initial layout
     recomputeLayout();
 
-    // ResizeObserver for layout
+    // ResizeObserver
     const resizeObserver = new ResizeObserver(() => recomputeLayout());
     resizeObserver.observe(chartScroll);
 
-    // ResizeObserver for width sync
-    const chartContentObserver = new ResizeObserver(ganttRecomputeWidth);
-    const timelineContentObserver = new ResizeObserver(ganttRecomputeWidth);
-    chartContentObserver.observe(chartContent);
-    timelineContentObserver.observe(timelineCont);
-
     return () => {
       resizeObserver.disconnect();
-      chartContentObserver.disconnect();
-      timelineContentObserver.disconnect();
     };
   }, [viewConfig]);
 
@@ -338,61 +308,33 @@ const GanttChart: React.FC = () => {
 
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
-    // Bi-directional scroll sync with lock (no feedback loops)
-    function ganttScrollSync() {
-      const chart = document.getElementById('gantt-chart-scroll');
-      const time = document.getElementById('gantt-timeline-scroll');
-      const proxy = document.getElementById('gantt-hscroll-proxy');
-      
-      if (!chart || !time) return;
-      
-      let lock = false;
-      const link = (from: HTMLElement, to: HTMLElement) => { 
-        if (lock) return; 
-        lock = true; 
-        to.scrollLeft = from.scrollLeft; 
-        lock = false; 
-      };
-      
-      const syncFromChart = () => {
-        link(chart, time);
-        if (proxy) proxy.scrollLeft = chart.scrollLeft;
-      };
-      
-      const syncFromTimeline = () => {
-        link(time, chart);
-        if (proxy) proxy.scrollLeft = time.scrollLeft;
-      };
-      
-      const syncFromProxy = () => {
-        if (proxy) {
-          link(proxy, chart);
-          link(proxy, time);
-        }
-      };
-      
-      chart.addEventListener('scroll', syncFromChart, { passive: true });
-      time.addEventListener('scroll', syncFromTimeline, { passive: true });
-      if (proxy) {
-        proxy.addEventListener('scroll', syncFromProxy, { passive: true });
-      }
-      
-      // Initial alignment
-      requestAnimationFrame(() => { 
-        time.scrollLeft = chart.scrollLeft; 
-        if (proxy) proxy.scrollLeft = chart.scrollLeft;
-      });
-      
-      return () => {
-        chart.removeEventListener('scroll', syncFromChart);
-        time.removeEventListener('scroll', syncFromTimeline);
-        if (proxy) {
-          proxy.removeEventListener('scroll', syncFromProxy);
-        }
-      };
+    const chart = document.getElementById('gantt-chart-scroll');
+    const proxy = document.getElementById('gantt-hscroll-proxy');
+    const timeline = document.getElementById('gantt-timeline-scroll');
+    
+    if (!chart || !proxy || !timeline) return;
+    
+    let syncing = false;
+    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){
+      if (syncing) return; syncing = true;
+      a.scrollLeft = from.scrollLeft;
+      b.scrollLeft = from.scrollLeft;
+      syncing = false;
     }
     
-    return ganttScrollSync();
+    const syncFromProxy = () => sync(proxy, chart, timeline);
+    const syncFromChart = () => sync(chart, proxy, timeline);
+    const syncFromTimeline = () => sync(timeline, proxy, chart);
+    
+    proxy.addEventListener('scroll', syncFromProxy, { passive: true });
+    chart.addEventListener('scroll', syncFromChart, { passive: true });
+    timeline.addEventListener('scroll', syncFromTimeline, { passive: true });
+    
+    return () => {
+      proxy.removeEventListener('scroll', syncFromProxy);
+      chart.removeEventListener('scroll', syncFromChart);
+      timeline.removeEventListener('scroll', syncFromTimeline);
+    };
   }, []);
 
   return (
