@@ -91,7 +91,8 @@ html, body, #root, #gantt-root {
   flex-wrap: wrap; 
   align-items: center; 
   gap: 12px;
-  margin: 0 0 8px 0;   /* no left margin */
+  margin-left: 25px !important; /* requested 25px indent */
+  margin-bottom: 8px;           /* keep vertical spacing if needed */
 }
 #gantt-controls .ctrl { display:flex; align-items:center; gap:6px; }
 #gantt-controls select,
