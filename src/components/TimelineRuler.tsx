@@ -24,14 +24,14 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     
     // totalIndices = 25 (0..24). Line at x = index * pxPerUnit (hours).
     for (let hour = 0; hour <= 24; hour++) {
-      const x = hour * pxPerUnit;
+      const x = Math.round(hour * pxPerUnit);  // avoid subpixel drift
       
       if (hour < 24) {
         ticks.push(
           <div key={`hour-${hour}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className={`absolute top-1 text-xs text-gray-300 font-medium ${
-                hour === 0 ? 'gantt-tick--first' : ''
+              className={`absolute top-1 text-xs text-gray-300 font-medium gantt-tick--${
+                hour === 0 ? 'first' : hour === 23 ? 'last' : 'middle'
               }`}
               style={{
                 // Labels: 0 align-left; 1..23 centered (translateX(-50%)); 24 align-right (translateX(-100%))
@@ -48,7 +48,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         
         // Minor tick (30 minutes) if there's enough space
         if (pxPerUnit >= 40) {
-          const minorX = x + pxPerUnit * 0.5;
+          const minorX = Math.round(x + pxPerUnit * 0.5);
           ticks.push(
             <div key={`half-${hour}`} className="absolute top-0 h-6 border-l border-gray-700" style={{ left: minorX }} />
           );
@@ -87,7 +87,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     
     // For day index d=0..days: line at x = d * pxPerUnit
     for (let day = 0; day <= days; day++) {
-      const x = day * pxPerUnit;
+      const x = Math.round(day * pxPerUnit);  // avoid subpixel drift
       
       if (day < days) {
         const currentDay = new Date(anchor);
@@ -101,12 +101,12 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key={`day-${day}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className={`absolute top-1 text-xs text-gray-300 font-medium ${
-                day === 0 ? 'gantt-tick--first' : ''
+              className={`absolute top-1 text-xs text-gray-300 font-medium gantt-tick--${
+                day === 0 ? 'first' : day === days - 1 ? 'last' : 'middle'
               }`}
               style={{
                 // Label for each day cell placed at x = d*pxPerUnit + pxPerUnit/2, centered
-                left: day === 0 ? '2px' : `${pxPerUnit/2}px`,
+                left: day === 0 ? '2px' : `${Math.round(pxPerUnit/2)}px`,
                 right: 'auto',
                 transform: day === 0 ? 'none' : 'translateX(-50%)'
               }}
@@ -138,7 +138,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
     
     // Lines at x = d*pxPerUnit for d=0..dim
     for (let day = 0; day <= dim; day++) {
-      const x = day * pxPerUnit;
+      const x = Math.round(day * pxPerUnit);  // avoid subpixel drift
       
       if (day < dim) {
         const currentDay = new Date(anchor);
@@ -148,8 +148,8 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key={`day-${day}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className={`absolute top-1 text-xs text-gray-300 font-medium ${
-                day === 0 ? 'gantt-tick--first' : day === dim - 1 ? 'gantt-tick--last' : ''
+              className={`absolute top-1 text-xs text-gray-300 font-medium gantt-tick--${
+                day === 0 ? 'first' : day === dim - 1 ? 'last' : 'middle'
               }`}
               style={{
                 // Labels for days 1..dim centered in their cells; edges like Hour/Week

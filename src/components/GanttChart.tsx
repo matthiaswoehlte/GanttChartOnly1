@@ -247,33 +247,19 @@ const GanttChart: React.FC = () => {
 
   // Align zero and controls
   useEffect(() => {
-    const table   = document.getElementById('gantt-table-left');
-    const tScroll = document.getElementById('gantt-timeline-scroll');
-    const cScroll = document.getElementById('gantt-chart-scroll');
-
-    if (!table || !tScroll || !cScroll) return;
-
-    function setTableVar(){
-      const w = Math.round(table.getBoundingClientRect().width);   // includes border
-      document.documentElement.style.setProperty('--gantt-table-w', w + 'px');
-    }
-    
-    // Run now and on resize
-    setTableVar();
-    const resizeObserver = new ResizeObserver(setTableVar);
-    resizeObserver.observe(table);
-    
-    const handleResize = () => setTableVar();
-    window.addEventListener('resize', handleResize);
-
-    // Guard: left paddings must be zero on scroll containers
-    tScroll.style.paddingLeft = '0px';
-    cScroll.style.paddingLeft = '0px';
-    
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', handleResize);
-    };
+    // Pin header to table width
+    (function pinHeaderToTable(){
+      const table  = document.getElementById('gantt-table-left');
+      if (!table) return;
+      
+      function setTableVar(){
+        const w = Math.round(table.getBoundingClientRect().width);   // includes border
+        document.documentElement.style.setProperty('--gantt-table-w', w + 'px');
+      }
+      setTableVar();
+      new ResizeObserver(setTableVar).observe(table);
+      window.addEventListener('resize', setTableVar);
+    })();
   }, []);
 
   // Scroll sync (loop-safe, attach ONCE)
@@ -311,14 +297,14 @@ const GanttChart: React.FC = () => {
     <div id="gantt-root">
       {/* Header - Sticky */}
       <div id="gantt-header">
-        <div id="gantt-header-grid" className="grid grid-cols-5 h-auto">
-          {/* Left column - 20% */}
-          <div className="col-span-1 bg-gray-800 px-4 py-3 border-r border-gray-600">
+        <div id="gantt-header-grid">
+          {/* Left column - bound to table width */}
+          <div id="gantt-title">
             <h2 className="text-lg font-semibold text-gray-200">Resources</h2>
           </div>
           
-          {/* Right column - 80% */}
-          <div className="col-span-4 bg-gray-800 px-4 py-3">
+          {/* Right column */}
+          <div>
             <div id="gantt-controls" className="mb-3">
               <div className="ctrl">
                 <label>View:</label>
@@ -367,7 +353,7 @@ const GanttChart: React.FC = () => {
           </div>
           
           {/* Header vertical rule */}
-          <div id="gantt-header-vrule" aria-hidden="true"></div>
+          <div id="gantt-header-vrule" aria-hidden="true" />
         </div>
       </div>
 
