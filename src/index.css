@@ -77,11 +77,12 @@ body {
 #gantt-chart-scroll,    #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
 
 /* Alternating rows IN THE CHART BODY */
-#gantt-chart-content{ position:relative; }  /* but NOT the bars container */
+#gantt-chart-content{ position:relative; display:block; }
 .gantt-row{
   position: relative;
   height: var(--gantt-row-h);
   display: block;
+  width: 100%;
   /* alternating background */
   background: #1F2937;
 }
@@ -132,7 +133,7 @@ body {
 
 /* B) Bars render INSIDE each row with centered labels */
 .gantt-row { position: relative; }
-.gantt-row-bars { position: relative; height: 100%; }
+.gantt-row-bars { position: relative; width: 100%; height: 100%; overflow: visible; }
 .gantt-bar {
   position: absolute;
   top: 6px;
@@ -140,6 +141,10 @@ body {
   border-radius: 6px;
   overflow: hidden;
 }
+
+/* IMPORTANT: no transforms on chart content or ancestors */
+#gantt-chart-content,
+#gantt-chart-scroll { transform: none !important; }
 
 .gantt-bar-label {
   position: absolute;

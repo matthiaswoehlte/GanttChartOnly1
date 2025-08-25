@@ -114,17 +114,38 @@ const GanttChart: React.FC = () => {
   };
 
   // Apply shared content width to both timeline and chart
-  const applySharedWidth = (px: number) => {
-    const w = Math.ceil(px) + 2;
+  const applyContentWidthByRatio = (view: string, preset: string, viewportPx: number) => {
     const chartContent = document.getElementById('gantt-chart-content');
     const timelineContent = document.getElementById('gantt-timeline-content');
     
-    if (chartContent) {
-      chartContent.style.width = chartContent.style.minWidth = w + 'px';
+    if (!chartContent || !timelineContent) return { pxPerUnit: 0, totalUnits: 0, contentPx: 0 };
+
+    let totalUnits, visibleUnits;
+    
+    if (view === 'hour') {
+      totalUnits = 24;
+      const match = String(preset).match(/(\d+)/);
+      visibleUnits = match ? parseInt(match[1], 10) : 24; // 24|18|12|6|4
+    } else if (view === 'month') {
+      const dim = new Date(viewConfig.selectedDate.getFullYear(), viewConfig.selectedDate.getMonth() + 1, 0).getDate();
+      totalUnits = dim;
+      if (/14/.test(preset)) visibleUnits = 14;
+      else if (/7/.test(preset)) visibleUnits = 7;
+      else visibleUnits = dim; // Full Month
+    } else {
+      // Week view - no scrolling
+      totalUnits = /work/i.test(preset) ? 5 : 7;
+      visibleUnits = totalUnits;
     }
-    if (timelineContent) {
-      timelineContent.style.width = timelineContent.style.minWidth = w + 'px';
-    }
+
+    const contentPx = viewportPx * (totalUnits / visibleUnits);
+    const w = Math.ceil(px) + 2;
+    
+    chartContent.style.width = w + 'px';
+    timelineContent.style.width = w + 'px';
+
+    const pxPerUnit = contentPx / totalUnits;
+    return { pxPerUnit, totalUnits, visibleUnits, contentPx: w };
   };
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
@@ -170,10 +191,10 @@ const GanttChart: React.FC = () => {
 
     function layoutHour(){
       totalUnits = 24;
-      visibleUnits = parseHourPreset(preset);     // 24|18|12|6|4
-      const contentWidth = vw() * (totalUnits / visibleUnits);  // ratio method
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
+      const match = String(preset).match(/(\d+)/);
+      visibleUnits = match ? parseInt(match[1], 10) : 24; // 24|18|12|6|4
+      const result = applyContentWidthByRatio('hour', preset, vw());
+      pxPerUnit = result.pxPerUnit;
 
       const noScroll = visibleUnits === 24;
       chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
@@ -183,9 +204,8 @@ const GanttChart: React.FC = () => {
     function layoutWeek(){
       const days = /work/i.test(String(preset)) ? 5 : 7;  // default Full=7
       totalUnits = days; visibleUnits = days;
-      const contentWidth = vw();                                    // no horizontal scroll
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
+      const result = applyContentWidthByRatio('week', preset, vw());
+      pxPerUnit = result.pxPerUnit;
       chartScroll.style.overflowX = 'hidden';
       timelineScroll.style.overflowX = 'hidden';
       chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
@@ -196,13 +216,13 @@ const GanttChart: React.FC = () => {
       totalUnits = dim;
       if (isFull(preset)) visibleUnits = dim;
       else {
-        const v = parseHourPreset(preset);                // 7|14|dim
-        visibleUnits = v === 24 ? 14 : v;                 // fallback to 14 for invalid
+        if (/14/.test(preset)) visibleUnits = 14;
+        else if (/7/.test(preset)) visibleUnits = 7;
+        else visibleUnits = 14; // fallback
         if (visibleUnits > totalUnits) visibleUnits = totalUnits;
       }
-      const contentWidth = vw() * (totalUnits / visibleUnits);      // ratio → guarantees full span
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
+      const result = applyContentWidthByRatio('month', preset, vw());
+      pxPerUnit = result.pxPerUnit;
       const scrollable = visibleUnits < totalUnits;
       chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
       timelineScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
