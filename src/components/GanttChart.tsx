@@ -228,6 +228,11 @@ const GanttChart: React.FC = () => {
         window.__ganttAlignTimeline();
       }
       
+      // Call header alignment after layout changes
+      if (window.__ganttHeaderAlign) {
+        window.__ganttHeaderAlign();
+      }
+      
       // Debug: show mismatches immediately
       if (dbg){
         const csw = chartScroll.scrollWidth,  cCW = chartScroll.clientWidth;
@@ -252,18 +257,36 @@ const GanttChart: React.FC = () => {
 
   // Align zero and controls
   useEffect(() => {
-    // Pin header to table width
-    (function pinHeaderToTable(){
-      const table  = document.getElementById('gantt-table-left');
-      if (!table) return;
-      
-      function setTableVar(){
-        const w = Math.round(table.getBoundingClientRect().width);   // includes border
-        document.documentElement.style.setProperty('--gantt-table-w', w + 'px');
+    // Align header to table divider
+    (function alignHeaderToTableDivider(){
+      const table   = document.getElementById('gantt-table-left');
+      const grid    = document.getElementById('gantt-header-grid');
+      const headerC = document.getElementById('gantt-header-chart');
+
+      function recompute(){
+        if (!table || !grid || !headerC) return;
+        const tableRect  = table.getBoundingClientRect();
+        const headerRect = headerC.getBoundingClientRect();
+
+        /* 1) Tabellenbreite als CSS-Var für die Grid-Spalte links */
+        const tw = Math.round(tableRect.width);
+        document.documentElement.style.setProperty('--gantt-table-w', tw + 'px');
+
+        /* 2) Delta ermitteln: Header-Chart-Left soll genau auf Table-Right liegen */
+        const dividerX = Math.round(tableRect.right);
+        const hdrLeft  = Math.round(headerRect.left);
+        const delta    = dividerX - hdrLeft;   // positiv → nach links schieben
+
+        document.documentElement.style.setProperty('--gantt-header-shift', delta + 'px');
       }
-      setTableVar();
-      new ResizeObserver(setTableVar).observe(table);
-      window.addEventListener('resize', setTableVar);
+
+      recompute();
+      new ResizeObserver(recompute).observe(table);
+      new ResizeObserver(recompute).observe(grid);
+      window.addEventListener('resize', recompute);
+
+      /* Falls ihr ein eigenes recomputeLayout habt: am Ende ebenfalls recompute() aufrufen */
+      window.__ganttHeaderAlign = recompute;
     })();
 
     // Calibrate timeline alignment
@@ -303,6 +326,11 @@ const GanttChart: React.FC = () => {
 
       // Call after every recompute/re-render
       window.__ganttAlignTimeline = measureAndApply;
+      
+      // Also call header alignment
+      if (window.__ganttHeaderAlign) {
+        window.__ganttHeaderAlign();
+      }
     })();
   }, []);
 
@@ -348,7 +376,7 @@ const GanttChart: React.FC = () => {
           </div>
           
           {/* Right column */}
-          <div>
+          <div id="gantt-header-chart">
             <div id="gantt-controls" className="mb-3">
               <div className="ctrl">
                 <label>View:</label>

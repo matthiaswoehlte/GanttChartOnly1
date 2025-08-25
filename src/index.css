@@ -44,12 +44,24 @@ html, body, #root, #gantt-root {
 /* Header grid uses EXACTLY the table width from a CSS var we set in JS */
 #gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
 #gantt-header-grid {
-  display:grid;
-  grid-template-columns: var(--gantt-table-w, 280px) 1fr;   /* <-- bound to table width */
-  align-items:center;
-  column-gap:16px;
-  position:relative;         /* anchor for vrule */
-  padding:12px 16px 4px 16px;
+  display: grid;
+  /* linke Spalte exakt = Tabellenbreite (setzen wir in JS als CSS-Var) */
+  grid-template-columns: var(--gantt-table-w, 280px) 1fr;
+  column-gap: 0;
+  padding-left: 0;   /* WICHTIG: keine linke Innenkante im Grid */
+  padding-right: 16px;
+  padding-top: 12px;
+  padding-bottom: 4px;
+  align-items: center;
+}
+
+/* Titel links soft einrücken, aber NICHT über den linken Rand hinausragen */
+#gantt-title { padding-left: 12px; }
+
+/* Rechte Header-Spalte (Controls + Timeline) kann feinjustiert verschoben werden */
+#gantt-header-chart {
+  position: relative;
+  transform: translateX(var(--gantt-header-shift, 0px)); /* wird in JS gesetzt */
 }
 
 /* controls stay on one row */
