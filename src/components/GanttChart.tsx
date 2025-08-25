@@ -378,6 +378,40 @@ const GanttChart: React.FC = () => {
       requestAnimationFrame(() => { time.scrollLeft = chart.scrollLeft; });
     })();
 
+    // Multi-scroll sync for all horizontal scrollers
+    (function syncAllGanttHScroll(){
+      const ids = ['gantt-chart-scroll', 'gantt-timeline-scroll', 'gantt-proxy-scroll'];
+      const els = ids.map(id => document.getElementById(id)).filter(Boolean);
+
+      if (els.length < 2) return;  // nothing to sync
+
+      // Avoid double-binding if this runs more than once
+      if (window.__ganttHSyncBound) return;
+      window.__ganttHSyncBound = true;
+
+      let lock = false;
+
+      function propagate(src){
+        if (lock) return;
+        lock = true;
+        const x = src.scrollLeft;
+        for (const el of els){
+          if (el !== src && el.scrollLeft !== x) el.scrollLeft = x;
+        }
+        lock = false;
+      }
+
+      // Bind scroll on every present scroller
+      for (const el of els){
+        el.addEventListener('scroll', () => propagate(el), { passive: true });
+      }
+
+      // Initial alignment: use the max current scrollLeft
+      requestAnimationFrame(() => {
+        const start = Math.max(...els.map(e => e.scrollLeft || 0));
+        els.forEach(e => e.scrollLeft = start);
+      });
+    })();
     // Robust scroll sync with DOM observation
     (function ensureGanttScrollSync(){
       const CHART_ID = 'gantt-chart-scroll';
