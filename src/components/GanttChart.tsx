@@ -360,7 +360,7 @@ const GanttChart: React.FC = () => {
           </div>
           
           {/* Right column */}
-          <div>
+          <div id="gantt-header-right">
             <div id="gantt-controls" className="mb-3">
               <div className="ctrl">
                 <label>View:</label>
