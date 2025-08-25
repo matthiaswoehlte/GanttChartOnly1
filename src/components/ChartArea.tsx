@@ -25,7 +25,7 @@ const ChartArea: React.FC<ChartAreaProps> = ({
   onScroll,
   scrollLeft,
   onTaskUpdate,
-  onTaskMove
+  onTaskMove,
   pxPerUnit,
   totalUnits
 }) => {
