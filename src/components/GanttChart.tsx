@@ -874,6 +874,27 @@ const GanttChart: React.FC = () => {
     };
   }, []);
 
+  // RAF-based mirror scroll with start/stop control
+  useEffect(() => {
+    (function rafMirrorScroll(){
+      const chart = document.getElementById('gantt-chart-scroll');
+      const time  = document.getElementById('gantt-timeline-scroll');
+      if (!chart || !time) return;               // tut nichts, wenn IDs fehlen
+
+      let last = -1;
+      function tick(){
+        if (window.__ganttStopSync) return;      // Notbremse
+        const x = chart.scrollLeft;
+        if (x !== last && time.scrollLeft !== x) {
+          time.scrollLeft = x;                   // nur Timeline wird gesetzt
+          last = x;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
