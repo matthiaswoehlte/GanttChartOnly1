@@ -266,18 +266,16 @@ const GanttChart: React.FC = () => {
       window.addEventListener('resize', setTableVar);
     })();
 
-    // Calibrate timeline alignment
-    (function calibrateTimeline(){
+    (function alignTimelineZero(){
       const table     = document.getElementById('gantt-table-left');
       const chartView = document.getElementById('gantt-chart-scroll');
       const tContent  = document.getElementById('gantt-timeline-content');
 
-      function findBarStartX() {
-        const candidate =
-          document.querySelector('[data-gantt-x0]') ||
-          document.querySelector('.gantt-row-track') ||
-          document.querySelector('.task-bar');
-        return candidate ? candidate.getBoundingClientRect().left : null;
+      if (!table || !chartView || !tContent) return;
+
+      function findBarStartX(){
+        const firstBar = document.querySelector('.gantt-task-bar');
+        return firstBar ? Math.round(firstBar.getBoundingClientRect().left) : null;
       }
 
       function measureAndApply() {
