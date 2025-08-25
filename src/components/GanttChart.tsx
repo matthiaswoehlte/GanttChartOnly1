@@ -558,6 +558,78 @@ const GanttChart: React.FC = () => {
         });
       };
     })();
+
+    // Content width equalization and two-way scroll sync
+    (function fixGanttWidthAndSync(){
+      const IDS = {
+        chartScroll:  'gantt-chart-scroll',
+        chartContent: 'gantt-chart-content',
+        timeScroll:   'gantt-timeline-scroll',
+        timeContent:  'gantt-timeline-content',
+      };
+
+      function px(n){ return Math.max(0, Math.round(n||0)); }
+
+      function getContentWidth(el){
+        // prefer explicit style width, then scrollWidth, then box width
+        const styleW = parseFloat(el.style.width) || 0;
+        const sw = el.scrollWidth || 0;
+        const box = el.getBoundingClientRect ? el.getBoundingClientRect().width : 0;
+        return Math.max(styleW, sw, box);
+      }
+
+      function equalizeWidths(){
+        const cc = document.getElementById(IDS.chartContent);
+        const tc = document.getElementById(IDS.timeContent);
+        if (!cc || !tc) return false;
+
+        // Use the larger width as single source of truth (usually timeline is larger)
+        const target = px(Math.max(getContentWidth(tc), getContentWidth(cc)));
+        cc.style.width    = target + 'px';
+        cc.style.minWidth = target + 'px';
+        tc.style.width    = target + 'px';
+        tc.style.minWidth = target + 'px';
+        return true;
+      }
+
+      function wireSync(){
+        const cs = document.getElementById(IDS.chartScroll);
+        const ts = document.getElementById(IDS.timeScroll);
+        if (!cs || !ts) return;
+
+        // Ensure both are horizontally scrollable when needed
+        cs.style.overflowX = cs.style.overflowX || 'auto';
+        ts.style.overflowX = ts.style.overflowX || 'auto';
+
+        // Prevent duplicate binding
+        if (cs.__ganttSyncBound && ts.__ganttSyncBound) return;
+        cs.__ganttSyncBound = ts.__ganttSyncBound = true;
+
+        let lock = false;
+        function link(from, to){
+          if (lock) return;
+          lock = true;
+          const x = from.scrollLeft;
+          if (to.scrollLeft !== x) to.scrollLeft = x;
+          lock = false;
+        }
+
+        cs.addEventListener('scroll', () => link(cs, ts), { passive:true });
+        ts.addEventListener('scroll', () => link(ts, cs), { passive:true });
+
+        // Initial alignment after layout
+        requestAnimationFrame(() => { ts.scrollLeft = cs.scrollLeft; });
+      }
+
+      // Run once now; if elements mount later, re-run when DOM changes
+      function run(){
+        if (equalizeWidths()) wireSync();
+      }
+      run();
+
+      const mo = new MutationObserver(run);
+      mo.observe(document.documentElement, { childList:true, subtree:true });
+    })();
   }, []);
 
   return (
