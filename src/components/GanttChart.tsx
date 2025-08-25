@@ -139,7 +139,7 @@ const GanttChart: React.FC = () => {
     }
 
     const contentPx = viewportPx * (totalUnits / visibleUnits);
-    const w = Math.ceil(px) + 2;
+    const w = Math.ceil(contentPx) + 2;
     
     chartContent.style.width = w + 'px';
     timelineContent.style.width = w + 'px';
