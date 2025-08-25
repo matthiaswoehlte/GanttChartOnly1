@@ -58,7 +58,6 @@ const GanttChart: React.FC = () => {
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
-    // Elements
     const chartScroll    = document.getElementById('gantt-chart-scroll');
     const chartContent   = document.getElementById('gantt-chart-content');
     const timelineScroll = document.getElementById('gantt-timeline-scroll');
@@ -71,50 +70,54 @@ const GanttChart: React.FC = () => {
       return;
     }
 
-    // Read from UI state
     let view = viewConfig.type;
     let preset = viewConfig.preset;
     let selDate = viewConfig.selectedDate;
 
-    // Helpers
     const MS_H = 3600000, MS_D = 86400000;
     function startOfDay(d: Date){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
     function firstOfMonth(d: Date){ const x=startOfDay(d); x.setDate(1); return x; }
     function isoMonday(d: Date){ const x=startOfDay(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
     function daysInMonth(d: Date){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
-    function vw(){ return chartScroll.getBoundingClientRect().width; }
+    function vw(){ return chartScroll.getBoundingClientRect().width; }  // FRACTIONAL
     function parseNum(v: any){ if (typeof v==='number') return v; const m=String(v).match(/(\d+)/); return m?Number(m[1]):NaN; }
     function isFull(v: any){ return /full/i.test(String(v)); }
 
-    function applyW(px: number){
-      const w = Math.ceil(px) + 1;   // minimal safety
+    // shared state
+    let pxPerUnit = 0, totalUnits = 0, visibleUnits = 0;  // unit = hour (Hour) or day (Week/Month)
+
+    // width applier (must hit ALL THREE content nodes)
+    function applySharedWidth(px: number){
+      const w = Math.ceil(px) + 2;  // +2 px safety to guarantee last pixel
       chartContent.style.width = chartContent.style.minWidth = w + 'px';
       timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
       proxyInner.style.width   = w + 'px';
       document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
     }
-    function clampH(){
+    
+    // Clamp & realign after EVERY recompute
+    function clampAndAlign(){
       requestAnimationFrame(()=>{
-        const maxC = chartScroll.scrollWidth - chartScroll.clientWidth;
-        const maxP = proxyScroll.scrollWidth - proxyScroll.clientWidth;
-        chartScroll.scrollLeft = Math.max(0, Math.min(chartScroll.scrollLeft, maxC));
-        proxyScroll.scrollLeft = Math.max(0, Math.min(proxyScroll.scrollLeft, maxP));
+        const maxC = chartScroll.scrollWidth    - chartScroll.clientWidth;
+        const maxT = timelineScroll.scrollWidth - timelineScroll.clientWidth;
+        const maxP = proxyScroll.scrollWidth    - proxyScroll.clientWidth;
+
+        // align all three to the smallest max so edges match
+        const maxAll = Math.min(maxC, maxT, maxP);
+        const target = Math.max(0, Math.min(chartScroll.scrollLeft, maxAll));
+        chartScroll.scrollLeft   = target;
+        timelineScroll.scrollLeft= target;
+        proxyScroll.scrollLeft   = target;
       });
     }
 
-    // The key: ratio-based width
-    // contentWidth = viewportWidth * (totalUnits / visibleUnits)
-    // pxPerUnit    = contentWidth / totalUnits
-    let currentPxPerUnit = 0, currentTotalUnits = 0, visibleUnits = 0;
-
     function layoutHour(){
-      const total = 24;
+      totalUnits = 24;
       const v = parseNum(preset);                 // 24|18|12|6|4, else NaN
       visibleUnits = (!v || Number.isNaN(v)) ? 24 : v;
-      currentTotalUnits = total;
-      const cw = vw() * (currentTotalUnits / visibleUnits);
-      applyW(cw);
-      currentPxPerUnit = cw / currentTotalUnits;
+      const contentWidth = vw() * (totalUnits / visibleUnits);  // ratio method
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
 
       const noScroll = visibleUnits === 24;
       chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
@@ -123,10 +126,10 @@ const GanttChart: React.FC = () => {
 
     function layoutWeek(){
       const days = /work/i.test(String(preset)) ? 5 : 7;  // default Full=7
-      currentTotalUnits = days; visibleUnits = days;
-      const cw = vw();                                    // no horizontal scroll
-      applyW(cw);
-      currentPxPerUnit = cw / currentTotalUnits;
+      totalUnits = days; visibleUnits = days;
+      const contentWidth = vw();                                    // no horizontal scroll
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
       chartScroll.style.overflowX = 'hidden';
       proxyScroll.style.display   = 'none';
       chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
@@ -134,17 +137,17 @@ const GanttChart: React.FC = () => {
 
     function layoutMonth(){
       const dim = daysInMonth(firstOfMonth(selDate));     // 28..31
-      currentTotalUnits = dim;
+      totalUnits = dim;
       if (isFull(preset)) visibleUnits = dim;
       else {
         const v = parseNum(preset);                       // 7|14|dim
         visibleUnits = (!v || Number.isNaN(v)) ? 14 : v;
-        if (visibleUnits > dim) visibleUnits = dim;
+        if (visibleUnits > totalUnits) visibleUnits = totalUnits;
       }
-      const cw = vw() * (currentTotalUnits / visibleUnits);      // ratio → guarantees full span
-      applyW(cw);
-      currentPxPerUnit = cw / currentTotalUnits;
-      const scrollable = visibleUnits < currentTotalUnits;
+      const contentWidth = vw() * (totalUnits / visibleUnits);      // ratio → guarantees full span
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
+      const scrollable = visibleUnits < totalUnits;
       chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
       proxyScroll.style.display   = scrollable ? 'block' : 'none';
     }
@@ -153,15 +156,19 @@ const GanttChart: React.FC = () => {
       if (view === 'hour')  layoutHour();
       if (view === 'week')  layoutWeek();
       if (view === 'month') layoutMonth();
-      clampH();
+      clampAndAlign();
       
       // Update React state
-      setPxPerUnit(currentPxPerUnit);
-      setTotalUnits(currentTotalUnits);
+      setPxPerUnit(pxPerUnit);
+      setTotalUnits(totalUnits);
       
+      // Debug: show mismatches immediately
       if (dbg){
-        const sw=chartScroll.scrollWidth, cw=chartScroll.clientWidth;
-        dbg.textContent = `view=${view} preset=${preset} • visible=${visibleUnits} total=${currentTotalUnits} • vw=${vw().toFixed(2)} • content=${sw}px • px/u=${currentPxPerUnit.toFixed(4)} • max=${sw-cw}px`;
+        const csw = chartScroll.scrollWidth,  cCW = chartScroll.clientWidth;
+        const tsw = timelineScroll.scrollWidth, tCW = timelineScroll.clientWidth;
+        const psw = proxyScroll.scrollWidth,  pCW = proxyScroll.clientWidth;
+        const mismatch = (csw !== tsw) || (csw !== psw);
+        dbg.textContent = `vw=${vw().toFixed(2)} • total=${totalUnits} • visible=${visibleUnits} • px/u=${pxPerUnit.toFixed(4)} • chartSW=${csw} • timelineSW=${tsw} • proxySW=${psw} • MISMATCH=${mismatch}`;
       }
     }
 
@@ -177,7 +184,7 @@ const GanttChart: React.FC = () => {
     };
   }, [viewConfig]);
 
-  // Scroll synchronization
+  // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
     const chart = document.getElementById('gantt-chart-scroll');
     const proxy = document.getElementById('gantt-hscroll-proxy');
@@ -185,14 +192,12 @@ const GanttChart: React.FC = () => {
     
     if (!chart || !proxy || !timeline) return;
     
-    // Scroll sync (loop-safe)
-    let syncing=false;
-    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){ 
-      if(syncing) return; 
-      syncing=true; 
-      a.scrollLeft=from.scrollLeft; 
-      b.scrollLeft=from.scrollLeft; 
-      syncing=false; 
+    let syncing = false;
+    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){
+      if (syncing) return; syncing = true;
+      a.scrollLeft = from.scrollLeft;
+      b.scrollLeft = from.scrollLeft;
+      syncing = false;
     }
     
     const syncFromProxy = () => sync(proxy, chart, timeline);

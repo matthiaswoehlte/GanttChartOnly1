@@ -87,13 +87,13 @@ html, body, #root, #gantt-root {
 #gantt-timeline-content,
 #gantt-hscroll-inner {
   display: block;
-  flex: 0 0 auto;        /* NEVER shrink */
+  flex: 0 0 auto;     /* prevent flex shrink */
   margin: 0;
   padding: 0;
   border: 0;
-  width: var(--gantt-content-w, 100%);        /* set by JS */
+  width: var(--gantt-content-w, 100%);
   min-width: var(--gantt-content-w, 100%);
-  transform: none;                             /* guard */
+  transform: none;
 }
 
 #gantt-hscroll-proxy {
