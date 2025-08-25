@@ -92,6 +92,35 @@ body { background:#0f172a; color:#e5e7eb; }
 .gantt-tick--first{ transform:translateX(0)!important; text-align:left; }
 .gantt-tick--last { transform:translateX(-100%)!important; text-align:right; }
 
+/* Gantt row structure for bars inside rows */
+#gantt-chart-content{ position:relative; }  /* but NOT the bars container */
+.gantt-row{
+  position: relative;
+  height: var(--gantt-row-h);
+  display: block;
+}
+.gantt-row-track{      /* the dark strip background, optional x0 marker */
+  position:absolute; inset:0;
+  pointer-events:none;
+}
+.gantt-row-bars{       /* THIS is where bars live, per-row */
+  position: relative;  /* NOT absolute; keeps bars local */
+  height: 100%;
+  overflow: visible;
+}
+.gantt-bar{
+  position: absolute;  /* left & width in px, top = row padding */
+  top: 6px;            /* or 0; keep consistent */
+  height: calc(100% - 12px);
+  border-radius: 6px;
+}
+
+/* remove any global absolute overlay for all bars */
+#all-bars-overlay, .bars-overlay, .gantt-bars-overlay { display:none !important; }
+
+/* ROW HEIGHT SYNC — table & chart must use the SAME --gantt-row-h */
+#gantt-table-left .row, #gantt-chart-content .gantt-row{ height: var(--gantt-row-h); }
+
 /* Task bar styles */
 .task-bar {
   position: absolute;

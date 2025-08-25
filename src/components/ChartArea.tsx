@@ -1,6 +1,5 @@
 import React from 'react';
 import { Task, Resource, ViewConfig } from '../types';
-import TaskBar from './TaskBar';
 import { getStartOfDay, getStartOfWeek, getStartOfMonth, getEndOfMonth } from '../utils/dateUtils';
 
 interface ChartAreaProps {
@@ -56,34 +55,83 @@ const ChartArea: React.FC<ChartAreaProps> = ({
     return task.endDate > visibleStart && task.startDate < visibleEnd;
   };
 
+  // Calculate anchor times based on view type
+  const getAnchorTime = () => {
+    const { selectedDate, type } = viewConfig;
+    switch (type) {
+      case 'hour':
+        return getStartOfDay(selectedDate);
+      case 'week':
+        return getStartOfWeek(selectedDate);
+      case 'month':
+        return getStartOfMonth(selectedDate);
+      default:
+        return new Date();
+    }
+  };
+  
+  const anchorTime = getAnchorTime();
+  
+  // Time to position functions using SAME pxPerUnit as timeline
+  const timeToX = (startDate: Date) => {
+    const MS_H = 3600000, MS_D = 86400000;
+    if (viewConfig.type === 'hour') {
+      return ((startDate.getTime() - anchorTime.getTime()) / MS_H) * pxPerUnit;
+    } else {
+      return ((startDate.getTime() - anchorTime.getTime()) / MS_D) * pxPerUnit;
+    }
+  };
+  
+  const timeToW = (startDate: Date, endDate: Date) => {
+    const MS_H = 3600000, MS_D = 86400000;
+    if (viewConfig.type === 'hour') {
+      return ((endDate.getTime() - startDate.getTime()) / MS_H) * pxPerUnit;
+    } else {
+      return ((endDate.getTime() - startDate.getTime()) / MS_D) * pxPerUnit;
+    }
+  };
   return (
-    <div className="relative h-full" style={{ width: totalUnits * pxPerUnit }}>
+    <div id="gantt-chart-content" style={{ width: totalUnits * pxPerUnit }}>
       {resources.map((resource, rowIndex) => {
         const resourceTasks = tasks.filter(task => 
           task.resourceId === resource.id && isTaskVisible(task)
         );
         
         return (
-          <div
+          <div 
             key={resource.id}
-            className={`relative border-b border-gray-600 row gantt-row-track ${
+            className={`gantt-row ${
               rowIndex % 2 === 0 ? 'even' : 'odd'
             }`}
-            data-gantt-x0
+            data-row={rowIndex}
           >
-            {resourceTasks.map(task => (
-              <TaskBar
-                key={task.id}
-                task={task}
-                viewConfig={viewConfig}
-                pxPerUnit={pxPerUnit}
-                totalUnits={totalUnits}
-                rowIndex={rowIndex}
-                onUpdate={onTaskUpdate}
-                onMove={onTaskMove}
-                resources={resources}
-              />
-            ))}
+            <div className="gantt-row-track border-b border-gray-600" data-gantt-x0></div>
+            <div className="gantt-row-bars">
+              {resourceTasks.map(task => {
+                const x = Math.max(0, timeToX(task.startDate));
+                const w = Math.max(24, timeToW(task.startDate, task.endDate));
+                
+                return (
+                  <div
+                    key={task.id}
+                    className="gantt-bar task-bar"
+                    style={{
+                      left: `${x}px`,
+                      width: `${w}px`,
+                      backgroundColor: task.color,
+                      borderColor: task.color,
+                    }}
+                    title={`${task.title} (${task.startDate.toLocaleString()} - ${task.endDate.toLocaleString()})`}
+                  >
+                    <div className="flex items-center justify-center h-full px-2">
+                      <span className="text-xs font-medium text-white truncate">
+                        {task.title}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
