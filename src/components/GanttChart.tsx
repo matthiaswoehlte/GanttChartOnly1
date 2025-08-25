@@ -119,94 +119,135 @@ const GanttChart: React.FC = () => {
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
-    // Deterministic width functions
-    function ganttUnits(view: string, presetLabel: string, anchorDate: Date) {
-      if (view === 'hour') {
-        const v = parseInt(String(presetLabel).match(/(\d+)/)?.[1] || '24', 10); // 24|18|12|6|4
-        return { totalUnits: 24, visibleUnits: Math.max(1, v) };
+    const chartScroll    = document.getElementById('gantt-chart-scroll');
+    const chartContent   = document.getElementById('gantt-chart-content');
+    const timelineScroll = document.getElementById('gantt-timeline-scroll');
+    const timelineCont   = document.getElementById('gantt-timeline-content');
+    const proxyScroll    = document.getElementById('gantt-hscroll-proxy');
+    const proxyInner     = document.getElementById('gantt-hscroll-inner');
+    const dbg            = document.getElementById('dbg');
+
+    if (!chartScroll || !chartContent || !timelineScroll || !timelineCont || !proxyScroll || !proxyInner) {
+      return;
+    }
+
+    let view = viewConfig.type;
+    let preset = viewConfig.preset;
+    let selDate = viewConfig.selectedDate;
+
+    const MS_H = 3600000, MS_D = 86400000;
+    function startOfDay(d: Date){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+    function firstOfMonth(d: Date){ const x=startOfDay(d); x.setDate(1); return x; }
+    function isoMonday(d: Date){ const x=startOfDay(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+    function daysInMonth(d: Date){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+    function vw(){ return chartScroll.getBoundingClientRect().width; }  // FRACTIONAL
+    function parseNum(v: any){ if (typeof v==='number') return v; const m=String(v).match(/(\d+)/); return m?Number(m[1]):NaN; }
+    function isFull(v: any){ return /full/i.test(String(v)); }
+
+    // shared state
+    let pxPerUnit = 0, totalUnits = 0, visibleUnits = 0;  // unit = hour (Hour) or day (Week/Month)
+
+    // width applier (must hit ALL THREE content nodes)
+    function applySharedWidth(px: number){
+      const w = Math.ceil(px) + 2;  // +2 px safety to guarantee last pixel
+      chartContent.style.width = chartContent.style.minWidth = w + 'px';
+      timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
+      proxyInner.style.width   = w + 'px';
+      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
+    }
+    
+    // Clamp & realign after EVERY recompute
+    function clampAndAlign(){
+      requestAnimationFrame(()=>{
+        const maxC = chartScroll.scrollWidth    - chartScroll.clientWidth;
+        const maxT = timelineScroll.scrollWidth - timelineScroll.clientWidth;
+        const maxP = proxyScroll.scrollWidth    - proxyScroll.clientWidth;
+
+        // align all three to the smallest max so edges match
+        const maxAll = Math.min(maxC, maxT, maxP);
+        const target = Math.max(0, Math.min(chartScroll.scrollLeft, maxAll));
+        chartScroll.scrollLeft   = target;
+        timelineScroll.scrollLeft= target;
+        proxyScroll.scrollLeft   = target;
+      });
+    }
+
+    function layoutHour(){
+      totalUnits = 24;
+      const v = parseNum(preset);                 // 24|18|12|6|4, else NaN
+      visibleUnits = (!v || Number.isNaN(v)) ? 24 : v;
+      const contentWidth = vw() * (totalUnits / visibleUnits);  // ratio method
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
+
+      const noScroll = visibleUnits === 24;
+      chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
+      proxyScroll.style.display   = noScroll ? 'none'   : 'block';
+    }
+
+    function layoutWeek(){
+      const days = /work/i.test(String(preset)) ? 5 : 7;  // default Full=7
+      totalUnits = days; visibleUnits = days;
+      const contentWidth = vw();                                    // no horizontal scroll
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
+      chartScroll.style.overflowX = 'hidden';
+      proxyScroll.style.display   = 'none';
+      chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
+    }
+
+    function layoutMonth(){
+      const dim = daysInMonth(firstOfMonth(selDate));     // 28..31
+      totalUnits = dim;
+      if (isFull(preset)) visibleUnits = dim;
+      else {
+        const v = parseNum(preset);                       // 7|14|dim
+        visibleUnits = (!v || Number.isNaN(v)) ? 14 : v;
+        if (visibleUnits > totalUnits) visibleUnits = totalUnits;
       }
-      if (view === 'month') {
-        const y = anchorDate.getFullYear(), m = anchorDate.getMonth();
-        const dim = new Date(y, m + 1, 0).getDate();
-        const v = /14/.test(presetLabel) ? 14 : /7/.test(presetLabel) ? 7 : dim; // 7/14/full
-        return { totalUnits: dim, visibleUnits: v };
-      }
-      // Week is non-scrollable here
-      return { totalUnits: 1, visibleUnits: 1 };
+      const contentWidth = vw() * (totalUnits / visibleUnits);      // ratio → guarantees full span
+      applySharedWidth(contentWidth);
+      pxPerUnit = contentWidth / totalUnits;
+      const scrollable = visibleUnits < totalUnits;
+      chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
+      proxyScroll.style.display   = scrollable ? 'block' : 'none';
     }
 
-    // Set content width once (no observer loops)
-    function ganttSetContentWidth(px: number) {
-      const cc = document.getElementById('gantt-chart-content');
-      const tc = document.getElementById('gantt-timeline-content');
-      if (!cc || !tc) return;
-      const w = Math.max(0, Math.round(px));
-      cc.style.width = w + 'px';
-      tc.style.width = w + 'px';
-    }
-
-    // Fallback to mirror chart width to timeline
-    function mirrorChartWidthToTimeline() {
-      const cc = document.getElementById('gantt-chart-content');
-      if (!cc) return;
-      const w = parseFloat(cc.style.width) || cc.scrollWidth || cc.getBoundingClientRect().width;
-      ganttSetContentWidth(w);
-    }
-
-    function ganttLayout(view: string, presetLabel: string, anchorDate: Date) {
-      const scroller = document.getElementById('gantt-chart-scroll');
-      const proxyScroll = document.getElementById('gantt-hscroll-proxy');
-      if (!scroller) return;
-      const viewport = scroller.clientWidth;                  // width of visible area
-      const { totalUnits, visibleUnits } = ganttUnits(view, presetLabel, anchorDate);
-      const contentPx = viewport * (totalUnits / Math.max(1, visibleUnits));
-      ganttSetContentWidth(contentPx);
-      document.documentElement.style.setProperty('--gantt-content-w', Math.round(contentPx) + 'px');
+    function recomputeLayout(){
+      if (view === 'hour')  layoutHour();
+      if (view === 'week')  layoutWeek();
+      if (view === 'month') layoutMonth();
+      clampAndAlign();
       
       // Update React state
-      setPxPerUnit(contentPx / totalUnits);
+      setPxPerUnit(pxPerUnit);
       setTotalUnits(totalUnits);
-      
-      // Handle scrollbar visibility
-      const scrollable = visibleUnits < totalUnits;
-      scroller.style.overflowX = scrollable ? 'auto' : 'hidden';
-      if (proxyScroll) {
-        proxyScroll.style.display = scrollable ? 'block' : 'none';
-        const proxyInner = document.getElementById('gantt-hscroll-inner');
-        if (proxyInner) proxyInner.style.width = Math.round(contentPx) + 'px';
-      }
       
       // Call timeline alignment after layout changes
       if (window.__ganttAlignTimeline) {
         window.__ganttAlignTimeline();
       }
+      
+      // Debug: show mismatches immediately
+      if (dbg){
+        const csw = chartScroll.scrollWidth,  cCW = chartScroll.clientWidth;
+        const tsw = timelineScroll.scrollWidth, tCW = timelineScroll.clientWidth;
+        const psw = proxyScroll.scrollWidth,  pCW = proxyScroll.clientWidth;
+        const mismatch = (csw !== tsw) || (csw !== psw);
+        dbg.textContent = `vw=${vw().toFixed(2)} • total=${totalUnits} • visible=${visibleUnits} • px/u=${pxPerUnit.toFixed(4)} • chartSW=${csw} • timelineSW=${tsw} • proxySW=${psw} • MISMATCH=${mismatch}`;
+      }
     }
-
-    // Set global variables for resize observer
-    (window as any).__ganttView = viewConfig.type;
-    (window as any).__ganttPreset = viewConfig.preset;
-    (window as any).__ganttAnchor = viewConfig.selectedDate;
 
     // Initial layout
-    ganttLayout(viewConfig.type, viewConfig.preset, viewConfig.selectedDate);
+    recomputeLayout();
 
-    // Resize observer with debounce & lock
-    const scroller = document.getElementById('gantt-chart-scroll');
-    if (scroller) {
-      let rafId = 0;
-      const ro = new ResizeObserver(() => {
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          ganttLayout((window as any).__ganttView, (window as any).__ganttPreset, (window as any).__ganttAnchor || new Date());
-        });
-      });
-      ro.observe(scroller);
-      
-      return () => {
-        ro.disconnect();
-        cancelAnimationFrame(rafId);
-      };
-    }
+    // ResizeObserver
+    const resizeObserver = new ResizeObserver(() => recomputeLayout());
+    resizeObserver.observe(chartScroll);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [viewConfig]);
 
   // Align zero and controls
@@ -267,40 +308,33 @@ const GanttChart: React.FC = () => {
 
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
-    // One-way scroll sync with proper timeline scrolling
-    (function() {
-      const chart = document.getElementById('gantt-chart-scroll');
-      const time = document.getElementById('gantt-timeline-scroll');
-      const proxy = document.getElementById('gantt-hscroll-proxy');
-      if (!chart || !time) return;
-      
-      // Chart -> Timeline (one-way sync)
-      chart.addEventListener('scroll', () => {
-        if (time.scrollLeft !== chart.scrollLeft) time.scrollLeft = chart.scrollLeft;
-        if (proxy) proxy.scrollLeft = chart.scrollLeft;
-      }, { passive: true });
-      
-      // Wheel over timeline controls chart
-      time.addEventListener('wheel', (e) => {
-        if (e.shiftKey || Math.abs(e.deltaX) > 0) {
-          chart.scrollLeft += (Math.abs(e.deltaX) > 0 ? e.deltaX : e.deltaY);
-          e.preventDefault();
-        }
-      }, { passive: false });
-      
-      if (proxy) {
-        proxy.addEventListener('scroll', () => {
-          chart.scrollLeft = proxy.scrollLeft;
-          time.scrollLeft = proxy.scrollLeft;
-        }, { passive: true });
-      }
-      
-      // Initial alignment
-      requestAnimationFrame(() => {
-        time.scrollLeft = chart.scrollLeft;
-        if (proxy) proxy.scrollLeft = chart.scrollLeft;
-      });
-    })();
+    const chart = document.getElementById('gantt-chart-scroll');
+    const proxy = document.getElementById('gantt-hscroll-proxy');
+    const timeline = document.getElementById('gantt-timeline-scroll');
+    
+    if (!chart || !proxy || !timeline) return;
+    
+    let syncing = false;
+    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){
+      if (syncing) return; syncing = true;
+      a.scrollLeft = from.scrollLeft;
+      b.scrollLeft = from.scrollLeft;
+      syncing = false;
+    }
+    
+    const syncFromProxy = () => sync(proxy, chart, timeline);
+    const syncFromChart = () => sync(chart, proxy, timeline);
+    const syncFromTimeline = () => sync(timeline, proxy, chart);
+    
+    proxy.addEventListener('scroll', syncFromProxy, { passive: true });
+    chart.addEventListener('scroll', syncFromChart, { passive: true });
+    timeline.addEventListener('scroll', syncFromTimeline, { passive: true });
+    
+    return () => {
+      proxy.removeEventListener('scroll', syncFromProxy);
+      chart.removeEventListener('scroll', syncFromChart);
+      timeline.removeEventListener('scroll', syncFromTimeline);
+    };
   }, []);
 
   return (
@@ -314,7 +348,7 @@ const GanttChart: React.FC = () => {
           </div>
           
           {/* Right column */}
-          <div id="gantt-header-right">
+          <div>
             <div id="gantt-controls" className="mb-3">
               <div className="ctrl">
                 <label>View:</label>
