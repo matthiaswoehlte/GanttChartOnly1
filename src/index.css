@@ -31,6 +31,12 @@ html, body, #root, #gantt-root {
   margin-left: 0 !important;
 }
 
+/* CSS – neutral (no transforms), box-sizing to avoid width creep */
+#gantt-chart-content, #gantt-timeline-content {
+  transform: none !important;
+  box-sizing: border-box;
+}
+
 /* Only the table draws the divider (avoid double lines) */
 #gantt-chart-scroll { border-left:0; }
 #gantt-table-left   { border-right:1px solid #374151; }
