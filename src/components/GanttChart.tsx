@@ -5,7 +5,6 @@ import ViewControls from './ViewControls';
 import TimelineRuler from './TimelineRuler';
 import ResourceTable from './ResourceTable';
 import ChartArea from './ChartArea';
-import { getDaysInMonth } from '../utils/dateUtils';
 
 const GanttChart: React.FC = () => {
   // Generate sample data
@@ -17,28 +16,10 @@ const GanttChart: React.FC = () => {
     preset: '24h',
     selectedDate: new Date()
   });
-  
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const chartScrollRef = useRef<HTMLDivElement>(null);
-  const timelineScrollRef = useRef<HTMLDivElement>(null);
 
   // Layout state
   const [pxPerUnit, setPxPerUnit] = useState(0);
   const [totalUnits, setTotalUnits] = useState(0);
-
-  // Measure container width
-  useEffect(() => {
-    const updateWidth = () => {
-      if (chartScrollRef.current) {
-        setContainerWidth(chartScrollRef.current.clientWidth);
-      }
-    };
-
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
 
   const handleTaskUpdate = (updatedTask: Task) => {
     setTasks(prevTasks =>
@@ -58,10 +39,6 @@ const GanttChart: React.FC = () => {
     console.log('Task moved:', taskId, 'to resource:', newResourceId);
   };
 
-  const handleScroll = (newScrollLeft: number) => {
-    setScrollLeft(newScrollLeft);
-  };
-
   const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const [year, month] = e.target.value.split('-').map(Number);
     const newDate = new Date(year, month - 1, 1); // month is 0-indexed
@@ -79,6 +56,8 @@ const GanttChart: React.FC = () => {
     });
   };
 
+  // ===== Width/Scroll Logic (Single Source of Truth) =====
+  
   // Helper functions
   const startOfDay = (d: Date): Date => {
     const x = new Date(d);
@@ -93,17 +72,23 @@ const GanttChart: React.FC = () => {
     return x;
   };
 
+  const firstOfMonth = (d: Date): Date => {
+    const x = startOfDay(d);
+    x.setDate(1);
+    return x;
+  };
+
   const daysInMonth = (d: Date): number => {
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   };
 
-  const vw = (): number => {
+  const viewportW = (): number => {
     const chartScroll = document.getElementById('gantt-chart-scroll');
     return chartScroll ? chartScroll.getBoundingClientRect().width : 0;
   };
 
   const applyW = (px: number) => {
-    const w = Math.ceil(px) + 2; // safety pixels
+    const w = Math.ceil(px) + 2; // safety to guarantee the last pixel is reachable
     const chartContent = document.getElementById('gantt-chart-content');
     const timelineCont = document.getElementById('gantt-timeline-content');
     const proxyInner = document.getElementById('gantt-hscroll-inner');
@@ -139,12 +124,12 @@ const GanttChart: React.FC = () => {
   // Layout calculators
   const layoutHour = () => {
     const visible = parseInt(viewConfig.preset.replace('h', ''));
-    const newTotalUnits = 24;
-    const newPxPerUnit = vw() / visible;
+    const total = 24;
+    const newPxPerUnit = viewportW() / visible;
     
-    setTotalUnits(newTotalUnits);
     setPxPerUnit(newPxPerUnit);
-    applyW(newTotalUnits * newPxPerUnit);
+    setTotalUnits(total);
+    applyW(total * newPxPerUnit);
     
     const chartScroll = document.getElementById('gantt-chart-scroll');
     const proxyScroll = document.getElementById('gantt-hscroll-proxy');
@@ -160,11 +145,10 @@ const GanttChart: React.FC = () => {
 
   const layoutWeek = () => {
     const days = (viewConfig.preset === 'full') ? 7 : 5;
-    const newTotalUnits = days;
-    const newPxPerUnit = vw() / days;
+    const newPxPerUnit = viewportW() / days;
     
-    setTotalUnits(newTotalUnits);
     setPxPerUnit(newPxPerUnit);
+    setTotalUnits(days);
     applyW(days * newPxPerUnit);
     
     const chartScroll = document.getElementById('gantt-chart-scroll');
@@ -184,14 +168,12 @@ const GanttChart: React.FC = () => {
   };
 
   const layoutMonth = () => {
-    const anchor = startOfDay(viewConfig.selectedDate);
-    const dim = daysInMonth(anchor);
+    const dim = daysInMonth(firstOfMonth(viewConfig.selectedDate));
     const vis = (viewConfig.preset === 'full' || Number(viewConfig.preset) === dim) ? dim : Number(viewConfig.preset);
-    const newTotalUnits = dim;
-    const newPxPerUnit = vw() / vis;
+    const newPxPerUnit = viewportW() / vis;
     
-    setTotalUnits(newTotalUnits);
     setPxPerUnit(newPxPerUnit);
+    setTotalUnits(dim);
     applyW(dim * newPxPerUnit);
     
     const chartScroll = document.getElementById('gantt-chart-scroll');
@@ -218,7 +200,7 @@ const GanttChart: React.FC = () => {
       const chartScroll = document.getElementById('gantt-chart-scroll');
       if (chartScroll) {
         const maxScroll = chartScroll.scrollWidth - chartScroll.clientWidth;
-        dbg.textContent = `view=${viewConfig.type} preset=${viewConfig.preset} vw=${vw().toFixed(2)} px/u=${pxPerUnit.toFixed(4)} content=${chartScroll.scrollWidth}px max=${maxScroll}px`;
+        dbg.textContent = `view=${viewConfig.type} preset=${viewConfig.preset} vw=${viewportW().toFixed(2)} px/u=${pxPerUnit.toFixed(4)} content=${chartScroll.scrollWidth}px max=${maxScroll}px`;
       }
     }
   };
@@ -259,23 +241,20 @@ const GanttChart: React.FC = () => {
   // Recompute on view/preset/date changes
   useEffect(() => {
     recomputeLayout();
-  }, [viewConfig, containerWidth]);
+  }, [viewConfig]);
 
   // ResizeObserver for container width changes
   useEffect(() => {
-    const chartScroller = chartScrollRef.current;
-    if (!chartScroller) return;
+    const chartScroll = document.getElementById('gantt-chart-scroll');
+    if (!chartScroll) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      const newWidth = chartScroller.getBoundingClientRect().width;
-      if (Math.abs(newWidth - containerWidth) > 1) {
-        setContainerWidth(newWidth);
-      }
+      recomputeLayout();
     });
 
-    resizeObserver.observe(chartScroller);
+    resizeObserver.observe(chartScroll);
     return () => resizeObserver.disconnect();
-  }, [containerWidth]);
+  }, []);
 
   return (
     <div id="gantt-root">
@@ -312,13 +291,10 @@ const GanttChart: React.FC = () => {
             </div>
             
             {/* Timeline Ruler */}
-            <div id="gantt-timeline-scroll" ref={timelineScrollRef}>
+            <div id="gantt-timeline-scroll">
               <div id="gantt-timeline-content">
                 <TimelineRuler
                   viewConfig={viewConfig}
-                  containerWidth={containerWidth}
-                  onScroll={handleScroll}
-                  scrollLeft={scrollLeft}
                   pxPerUnit={pxPerUnit}
                   totalUnits={totalUnits}
                 />
@@ -337,15 +313,12 @@ const GanttChart: React.FC = () => {
           </div>
 
           {/* Right pane - Chart (80%, horizontal scroll only) */}
-          <div id="gantt-chart-scroll" ref={chartScrollRef}>
+          <div id="gantt-chart-scroll">
             <div id="gantt-chart-content">
               <ChartArea
                 tasks={tasks}
                 resources={resources}
                 viewConfig={viewConfig}
-                containerWidth={containerWidth}
-                onScroll={handleScroll}
-                scrollLeft={scrollLeft}
                 onTaskUpdate={handleTaskUpdate}
                 onTaskMove={handleTaskMove}
                 pxPerUnit={pxPerUnit}

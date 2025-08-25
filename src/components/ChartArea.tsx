@@ -1,6 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { Task, Resource, ViewConfig } from '../types';
-import { getTimelineConfig } from '../utils/chartUtils';
 import TaskBar from './TaskBar';
 import { getStartOfDay, getStartOfWeek, getStartOfMonth, getEndOfMonth } from '../utils/dateUtils';
 
@@ -8,9 +7,6 @@ interface ChartAreaProps {
   tasks: Task[];
   resources: Resource[];
   viewConfig: ViewConfig;
-  containerWidth: number;
-  onScroll: (scrollLeft: number) => void;
-  scrollLeft: number;
   onTaskUpdate: (updatedTask: Task) => void;
   onTaskMove: (taskId: string, newResourceId: string) => void;
   pxPerUnit: number;
@@ -21,9 +17,6 @@ const ChartArea: React.FC<ChartAreaProps> = ({
   tasks,
   resources,
   viewConfig,
-  containerWidth,
-  onScroll,
-  scrollLeft,
   onTaskUpdate,
   onTaskMove,
   pxPerUnit,

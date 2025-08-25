@@ -53,21 +53,22 @@ const TaskBar: React.FC<TaskBarProps> = ({
   const anchorTime = getAnchorTime();
   
   // Calculate position and width using SAME pxPerUnit
-  const taskStart = task.startDate.getTime();
-  const anchorStart = anchorTime.getTime();
+  let left, width;
   
-  let unitsFromAnchor, durationUnits;
   if (viewConfig.type === 'hour') {
-    unitsFromAnchor = (taskStart - anchorStart) / 3600000; // hours
-    durationUnits = differenceInHours(task.endDate, task.startDate);
+    // Hour: x = ((startMs - anchorMs)/3600000) * pxPerUnit
+    const unitsFromAnchor = (task.startDate.getTime() - anchorTime.getTime()) / 3600000;
+    const durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / 3600000;
+    left = unitsFromAnchor * pxPerUnit;
+    width = durationUnits * pxPerUnit;
   } else {
-    unitsFromAnchor = (taskStart - anchorStart) / 86400000; // days
-    durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / 86400000;
+    // Week/Month: x = ((startMs - anchorMs)/86400000) * pxPerUnit
+    const unitsFromAnchor = (task.startDate.getTime() - anchorTime.getTime()) / 86400000;
+    const durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / 86400000;
+    left = unitsFromAnchor * pxPerUnit;
+    width = durationUnits * pxPerUnit;
   }
   
-  // Do NOT round x/w while dragging; snap only on pointerup
-  const left = unitsFromAnchor * pxPerUnit;
-  const width = durationUnits * pxPerUnit;
 
   const formatTooltipDate = (date: Date): string => {
     return date.toLocaleDateString('en-GB', {
@@ -126,11 +127,12 @@ const TaskBar: React.FC<TaskBarProps> = ({
     
     if (isDragging) {
       const newLeft = e.clientX - chartRect.left - dragOffset.x;
-      const newUnitsFromAnchor = Math.max(0, newLeft / pxPerUnit);
+      let newUnitsFromAnchor = Math.max(0, newLeft / pxPerUnit);
       
       // High-resolution dragging - no snapping during drag
-      const msPerUnit = viewConfig.type === 'hour' ? 3600000 : 86400000;
-      const deltaMs = (newUnitsFromAnchor - unitsFromAnchor) * msPerUnit;
+      const msPerUnit = viewConfig.type === 'hour' ? 3600000 : 86400000; // ms per hour or day
+      const currentUnitsFromAnchor = (task.startDate.getTime() - anchorTime.getTime()) / msPerUnit;
+      const deltaMs = (newUnitsFromAnchor - currentUnitsFromAnchor) * msPerUnit;
       const newStartDate = new Date(task.startDate.getTime() + deltaMs);
       const newEndDate = new Date(task.endDate.getTime() + deltaMs);
       
@@ -138,9 +140,10 @@ const TaskBar: React.FC<TaskBarProps> = ({
       updateTooltip(e, newStartDate, newEndDate);
       
       // Constrain within timeline bounds
+      const durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / msPerUnit;
       const constrainedUnits = Math.min(newUnitsFromAnchor, totalUnits - durationUnits);
       
-      const constrainedStartDate = new Date(anchorStart + constrainedUnits * msPerUnit);
+      const constrainedStartDate = new Date(anchorTime.getTime() + constrainedUnits * msPerUnit);
       const constrainedEndDate = new Date(constrainedStartDate.getTime() + durationUnits * msPerUnit);
       
       onUpdate({

@@ -5,9 +5,6 @@ import { getDaysInMonth, getStartOfDay, getStartOfWeek, getStartOfMonth } from '
 
 interface TimelineRulerProps {
   viewConfig: ViewConfig;
-  containerWidth: number;
-  onScroll: (scrollLeft: number) => void;
-  scrollLeft: number;
   pxPerUnit: number;
   totalUnits: number;
 }
@@ -31,9 +28,10 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
             <div 
               className="absolute top-1 text-xs text-gray-300 font-medium"
               style={{
-                left: hour === 0 ? '2px' : (hour === 23 ? 'auto' : '50%'),
-                right: hour === 23 ? '2px' : 'auto',
-                transform: hour === 0 || hour === 23 ? 'none' : 'translateX(-50%)'
+                left: hour === 0 ? '2px' : 'auto',
+                right: 'auto',
+                transform: hour === 0 ? 'none' : 'translateX(-50%)',
+                marginLeft: hour === 0 ? '0' : '-50%'
               }}
             >
               {formatHour(hour)}
@@ -49,14 +47,14 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
           );
         }
       } else {
-        // End cap line at x = 24 * pxPerUnit
+        // End cap line at x = 24 * pxPerUnit with 24:00 label
         ticks.push(
           <div key="end-cap" className="absolute top-0 h-full border-l border-gray-500" style={{ left: x }}>
             <div 
               className="absolute top-1 text-xs text-gray-300 font-medium"
               style={{
                 right: '2px',
-                transform: 'translateX(-100%)'
+                transform: 'translateX(100%)'
               }}
             >
               24:00
@@ -91,9 +89,10 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
             <div 
               className="absolute top-1 text-xs text-gray-300 font-medium"
               style={{
-                left: day === 0 ? '2px' : (day === days - 1 ? 'auto' : '50%'),
-                right: day === days - 1 ? '2px' : 'auto',
-                transform: day === 0 || day === days - 1 ? 'none' : 'translateX(-50%)'
+                left: day === 0 ? '2px' : 'auto',
+                right: 'auto',
+                transform: day === 0 ? 'none' : 'translateX(-50%)',
+                marginLeft: day === 0 ? '0' : '-50%'
               }}
             >
               {formatDate(currentDay)}
@@ -133,9 +132,10 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
             <div 
               className="absolute top-1 text-xs text-gray-300 font-medium"
               style={{
-                left: day === 0 ? '2px' : (day === dim - 1 ? 'auto' : '50%'),
+                left: day === 0 ? '2px' : 'auto',
                 right: day === dim - 1 ? '2px' : 'auto',
-                transform: day === 0 || day === dim - 1 ? 'none' : 'translateX(-50%)'
+                transform: day === 0 || day === dim - 1 ? 'none' : 'translateX(-50%)',
+                marginLeft: day === 0 || day === dim - 1 ? '0' : '-50%'
               }}
             >
               {currentDay.getDate()}
