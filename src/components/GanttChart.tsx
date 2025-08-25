@@ -148,7 +148,7 @@ const GanttChart: React.FC = () => {
     function isoMonday(d: Date){ const x=startOfDay(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
     function daysInMonth(d: Date){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
     function vw(){ return chartScroll.getBoundingClientRect().width; }  // FRACTIONAL
-    function parseNum(v: any){ if (typeof v==='number') return v; const m=String(v).match(/(\d+)/); return m?Number(m[1]):NaN; }
+    function parseHourPreset(preset: any){ if (typeof preset==='number') return preset; const m=String(preset).match(/(\d+)/); return m?Number(m[1]):24; }
     function isFull(v: any){ return /full/i.test(String(v)); }
 
     // shared state
@@ -170,14 +170,14 @@ const GanttChart: React.FC = () => {
 
     function layoutHour(){
       totalUnits = 24;
-      const v = parseNum(preset);                 // 24|18|12|6|4, else NaN
-      visibleUnits = (!v || Number.isNaN(v)) ? 24 : v;
+      visibleUnits = parseHourPreset(preset);     // 24|18|12|6|4
       const contentWidth = vw() * (totalUnits / visibleUnits);  // ratio method
       applySharedWidth(contentWidth);
       pxPerUnit = contentWidth / totalUnits;
 
       const noScroll = visibleUnits === 24;
       chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
+      timelineScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
     }
 
     function layoutWeek(){
@@ -187,6 +187,7 @@ const GanttChart: React.FC = () => {
       applySharedWidth(contentWidth);
       pxPerUnit = contentWidth / totalUnits;
       chartScroll.style.overflowX = 'hidden';
+      timelineScroll.style.overflowX = 'hidden';
       chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
     }
 
@@ -195,8 +196,8 @@ const GanttChart: React.FC = () => {
       totalUnits = dim;
       if (isFull(preset)) visibleUnits = dim;
       else {
-        const v = parseNum(preset);                       // 7|14|dim
-        visibleUnits = (!v || Number.isNaN(v)) ? 14 : v;
+        const v = parseHourPreset(preset);                // 7|14|dim
+        visibleUnits = v === 24 ? 14 : v;                 // fallback to 14 for invalid
         if (visibleUnits > totalUnits) visibleUnits = totalUnits;
       }
       const contentWidth = vw() * (totalUnits / visibleUnits);      // ratio → guarantees full span
@@ -204,6 +205,7 @@ const GanttChart: React.FC = () => {
       pxPerUnit = contentWidth / totalUnits;
       const scrollable = visibleUnits < totalUnits;
       chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
+      timelineScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
     }
 
     // Render timeline ticks
@@ -254,10 +256,20 @@ const GanttChart: React.FC = () => {
           addTick(x, d < totalUnits ? `${names[d % 7]}` : names[(d - 1) % 7], cls);
         }
       } else if (view === 'month') {
-        for (let d = 0; d <= totalUnits; d++) {
-          const x = d * pxPerUnit;
-          const cls = d === 0 ? 'gantt-tick--first' : (d === totalUnits ? 'gantt-tick--last' : '');
-          addTick(x, d > 0 && d < totalUnits ? String(d) : String(d % totalUnits || totalUnits), cls);
+        // C) Month timeline: vertical lines at cell edges 0..dim
+        for (let i = 0; i <= totalUnits; i++) {
+          const x = Math.round(i * pxPerUnit);
+          const line = document.createElement('div');
+          line.style.cssText = `position:absolute;left:${x}px;top:0;bottom:0;width:1px;background:#394454;`;
+          timelineContent.appendChild(line);
+        }
+        // Labels centered in each cell: 1..dim
+        for (let day = 1; day <= totalUnits; day++) {
+          const cx = Math.round((day - 0.5) * pxPerUnit);
+          const lab = document.createElement('div');
+          lab.textContent = String(day);
+          lab.style.cssText = `position:absolute;left:${cx}px;top:4px;font-size:12px;color:#cbd5e1;transform:translateX(-50%);`;
+          timelineContent.appendChild(lab);
         }
       }
     }

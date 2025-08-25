@@ -106,18 +106,36 @@ const ChartArea: React.FC<ChartAreaProps> = ({
           >
             <div className="gantt-row-bars">
               {resourceTasks.map(task => {
+                const left = timeToX(task.startDate);
+                const width = timeToW(task.startDate, task.endDate);
+                const isShort = width < 32;
+                
                 return (
-                  <TaskBar
+                  <div
                     key={task.id}
-                    task={task}
-                    viewConfig={viewConfig}
-                    pxPerUnit={pxPerUnit}
-                    totalUnits={totalUnits}
-                    rowIndex={rowIndex}
-                    onUpdate={onTaskUpdate}
-                    onMove={onTaskMove}
-                    resources={resources}
-                  />
+                    className={`gantt-bar ${isShort ? 'gantt-bar--short' : ''}`}
+                    style={{
+                      left: `${Math.max(0, left)}px`,
+                      width: `${Math.max(24, width)}px`,
+                      backgroundColor: task.color,
+                      borderColor: task.color
+                    }}
+                    title={`${task.title} (${task.startDate.toLocaleString()} - ${task.endDate.toLocaleString()})`}
+                  >
+                    <span className="gantt-bar-label">
+                      {task.title}
+                    </span>
+                    <TaskBar
+                      task={task}
+                      viewConfig={viewConfig}
+                      pxPerUnit={pxPerUnit}
+                      totalUnits={totalUnits}
+                      rowIndex={rowIndex}
+                      onUpdate={onTaskUpdate}
+                      onMove={onTaskMove}
+                      resources={resources}
+                    />
+                  </div>
                 );
               })}
             </div>
