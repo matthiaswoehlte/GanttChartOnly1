@@ -14,9 +14,9 @@ export interface Resource {
 
 export type ViewType = 'hour' | 'week' | 'month';
 
-export type HourPreset = '24h' | '18h' | '12h' | '6h' | '4h';
-export type WeekPreset = 'full' | 'work';
-export type MonthPreset = '7' | '14' | 'full';
+export type HourPreset = '24 Hours' | '18 Hours' | '12 Hours' | '6 Hours' | '4 Hours';
+export type WeekPreset = 'Full Week' | 'Work Week';
+export type MonthPreset = '7 Days' | '14 Days' | 'Full Month';
 
 export interface ViewConfig {
   type: ViewType;

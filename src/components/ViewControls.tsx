@@ -15,13 +15,13 @@ const ViewControls: React.FC<ViewControlsProps> = ({
     
     switch (type) {
       case 'hour':
-        preset = '24h' as HourPreset;
+        preset = '24 Hours' as HourPreset;
         break;
       case 'week':
-        preset = 'full' as WeekPreset;
+        preset = 'Full Week' as WeekPreset;
         break;
       case 'month':
-        preset = 'full' as MonthPreset;
+        preset = 'Full Month' as MonthPreset;
         break;
     }
     
@@ -48,11 +48,11 @@ const ViewControls: React.FC<ViewControlsProps> = ({
             onChange={(e) => handlePresetChange(e.target.value as HourPreset)}
             className="px-3 py-1 bg-gray-700 text-white border border-gray-600 rounded text-sm"
           >
-            <option value="4h">4 Hours</option>
-            <option value="6h">6 Hours</option>
-            <option value="12h">12 Hours</option>
-            <option value="18h">18 Hours</option>
-            <option value="24h">24 Hours</option>
+            <option value="4 Hours">4 Hours</option>
+            <option value="6 Hours">6 Hours</option>
+            <option value="12 Hours">12 Hours</option>
+            <option value="18 Hours">18 Hours</option>
+            <option value="24 Hours">24 Hours</option>
           </select>
         );
       case 'week':
@@ -62,8 +62,8 @@ const ViewControls: React.FC<ViewControlsProps> = ({
             onChange={(e) => handlePresetChange(e.target.value as WeekPreset)}
             className="px-3 py-1 bg-gray-700 text-white border border-gray-600 rounded text-sm"
           >
-            <option value="work">Work Week</option>
-            <option value="full">Full Week</option>
+            <option value="Work Week">Work Week</option>
+            <option value="Full Week">Full Week</option>
           </select>
         );
       case 'month':
@@ -73,9 +73,9 @@ const ViewControls: React.FC<ViewControlsProps> = ({
             onChange={(e) => handlePresetChange(e.target.value as MonthPreset)}
             className="px-3 py-1 bg-gray-700 text-white border border-gray-600 rounded text-sm"
           >
-            <option value="7">7 Days</option>
-            <option value="14">14 Days</option>
-            <option value="full">Full Month</option>
+            <option value="7 Days">7 Days</option>
+            <option value="14 Days">14 Days</option>
+            <option value="Full Month">Full Month</option>
           </select>
         );
     }
