@@ -56,69 +56,24 @@ const GanttChart: React.FC = () => {
     });
   };
 
-  const handleViewTypeChange = (type: ViewType) => {
-    let preset: HourPreset | WeekPreset | MonthPreset;
-    
-    switch (type) {
-      case 'hour':
-        preset = '24 Hours' as HourPreset;
-        break;
-      case 'week':
-        preset = 'Full Week' as WeekPreset;
-        break;
-      case 'month':
-        preset = 'Full Month' as MonthPreset;
-        break;
-    }
-    
-    setViewConfig({
-      ...viewConfig,
-      type,
-      preset
-    });
-  };
-
   const renderPresetOptions = () => {
-    switch (viewConfig.type) {
-      case 'hour':
-        return (
-          <select
-            value={viewConfig.preset}
-            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as HourPreset})}
-          >
-            <option value="4 Hours">4 Hours</option>
-            <option value="6 Hours">6 Hours</option>
-            <option value="12 Hours">12 Hours</option>
-            <option value="18 Hours">18 Hours</option>
-            <option value="24 Hours">24 Hours</option>
-          </select>
-        );
-      case 'week':
-        return (
-          <select
-            value={viewConfig.preset}
-            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as WeekPreset})}
-          >
-            <option value="Work Week">Work Week</option>
-            <option value="Full Week">Full Week</option>
-          </select>
-        );
-      case 'month':
-        return (
-          <select
-            value={viewConfig.preset}
-            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as MonthPreset})}
-          >
-            <option value="7 Days">7 Days</option>
-            <option value="14 Days">14 Days</option>
-            <option value="Full Month">Full Month</option>
-          </select>
-        );
-    }
+    return (
+      <select
+        value={viewConfig.preset}
+        onChange={(e) => setViewConfig(prev => ({ ...prev, preset: e.target.value }))}
+      >
+        <option value="24h">24h</option>
+        <option value="18h">18h</option>
+        <option value="12h">12h</option>
+        <option value="6h">6h</option>
+        <option value="4h">4h</option>
+      </select>
+    );
   };
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
+    // Elements
     const chartScroll    = document.getElementById('gantt-chart-scroll');
     const chartContent   = document.getElementById('gantt-chart-content');
     const timelineScroll = document.getElementById('gantt-timeline-scroll');
@@ -131,54 +86,50 @@ const GanttChart: React.FC = () => {
       return;
     }
 
+    // Read from UI state
     let view = viewConfig.type;
     let preset = viewConfig.preset;
     let selDate = viewConfig.selectedDate;
 
+    // Helpers
     const MS_H = 3600000, MS_D = 86400000;
     function startOfDay(d: Date){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
     function firstOfMonth(d: Date){ const x=startOfDay(d); x.setDate(1); return x; }
     function isoMonday(d: Date){ const x=startOfDay(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
     function daysInMonth(d: Date){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
-    function vw(){ return chartScroll.getBoundingClientRect().width; }  // FRACTIONAL
+    function vw(){ return chartScroll.getBoundingClientRect().width; }
     function parseNum(v: any){ if (typeof v==='number') return v; const m=String(v).match(/(\d+)/); return m?Number(m[1]):NaN; }
     function isFull(v: any){ return /full/i.test(String(v)); }
 
-    // shared state
-    let pxPerUnit = 0, totalUnits = 0, visibleUnits = 0;  // unit = hour (Hour) or day (Week/Month)
-
-    // width applier (must hit ALL THREE content nodes)
-    function applySharedWidth(px: number){
-      const w = Math.ceil(px) + 2;  // +2 px safety to guarantee last pixel
+    function applyW(px: number){
+      const w = Math.ceil(px) + 1;   // minimal safety
       chartContent.style.width = chartContent.style.minWidth = w + 'px';
       timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
       proxyInner.style.width   = w + 'px';
       document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
     }
-    
-    // Clamp & realign after EVERY recompute
-    function clampAndAlign(){
+    function clampH(){
       requestAnimationFrame(()=>{
-        const maxC = chartScroll.scrollWidth    - chartScroll.clientWidth;
-        const maxT = timelineScroll.scrollWidth - timelineScroll.clientWidth;
-        const maxP = proxyScroll.scrollWidth    - proxyScroll.clientWidth;
-
-        // align all three to the smallest max so edges match
-        const maxAll = Math.min(maxC, maxT, maxP);
-        const target = Math.max(0, Math.min(chartScroll.scrollLeft, maxAll));
-        chartScroll.scrollLeft   = target;
-        timelineScroll.scrollLeft= target;
-        proxyScroll.scrollLeft   = target;
+        const maxC = chartScroll.scrollWidth - chartScroll.clientWidth;
+        const maxP = proxyScroll.scrollWidth - proxyScroll.clientWidth;
+        chartScroll.scrollLeft = Math.max(0, Math.min(chartScroll.scrollLeft, maxC));
+        proxyScroll.scrollLeft = Math.max(0, Math.min(proxyScroll.scrollLeft, maxP));
       });
     }
 
+    // The key: ratio-based width
+    // contentWidth = viewportWidth * (totalUnits / visibleUnits)
+    // pxPerUnit    = contentWidth / totalUnits
+    let currentPxPerUnit = 0, currentTotalUnits = 0, visibleUnits = 0;
+
     function layoutHour(){
-      totalUnits = 24;
+      const total = 24;
       const v = parseNum(preset);                 // 24|18|12|6|4, else NaN
       visibleUnits = (!v || Number.isNaN(v)) ? 24 : v;
-      const contentWidth = vw() * (totalUnits / visibleUnits);  // ratio method
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
+      currentTotalUnits = total;
+      const cw = vw() * (currentTotalUnits / visibleUnits);
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
 
       const noScroll = visibleUnits === 24;
       chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
@@ -187,10 +138,10 @@ const GanttChart: React.FC = () => {
 
     function layoutWeek(){
       const days = /work/i.test(String(preset)) ? 5 : 7;  // default Full=7
-      totalUnits = days; visibleUnits = days;
-      const contentWidth = vw();                                    // no horizontal scroll
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
+      currentTotalUnits = days; visibleUnits = days;
+      const cw = vw();                                    // no horizontal scroll
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
       chartScroll.style.overflowX = 'hidden';
       proxyScroll.style.display   = 'none';
       chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
@@ -198,17 +149,17 @@ const GanttChart: React.FC = () => {
 
     function layoutMonth(){
       const dim = daysInMonth(firstOfMonth(selDate));     // 28..31
-      totalUnits = dim;
+      currentTotalUnits = dim;
       if (isFull(preset)) visibleUnits = dim;
       else {
         const v = parseNum(preset);                       // 7|14|dim
         visibleUnits = (!v || Number.isNaN(v)) ? 14 : v;
-        if (visibleUnits > totalUnits) visibleUnits = totalUnits;
+        if (visibleUnits > dim) visibleUnits = dim;
       }
-      const contentWidth = vw() * (totalUnits / visibleUnits);      // ratio → guarantees full span
-      applySharedWidth(contentWidth);
-      pxPerUnit = contentWidth / totalUnits;
-      const scrollable = visibleUnits < totalUnits;
+      const cw = vw() * (currentTotalUnits / visibleUnits);      // ratio → guarantees full span
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
+      const scrollable = visibleUnits < currentTotalUnits;
       chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
       proxyScroll.style.display   = scrollable ? 'block' : 'none';
     }
@@ -217,24 +168,15 @@ const GanttChart: React.FC = () => {
       if (view === 'hour')  layoutHour();
       if (view === 'week')  layoutWeek();
       if (view === 'month') layoutMonth();
-      clampAndAlign();
+      clampH();
       
       // Update React state
-      setPxPerUnit(pxPerUnit);
-      setTotalUnits(totalUnits);
+      setPxPerUnit(currentPxPerUnit);
+      setTotalUnits(currentTotalUnits);
       
-      // Call timeline alignment after layout changes
-      if (window.__ganttAlignTimeline) {
-        window.__ganttAlignTimeline();
-      }
-      
-      // Debug: show mismatches immediately
       if (dbg){
-        const csw = chartScroll.scrollWidth,  cCW = chartScroll.clientWidth;
-        const tsw = timelineScroll.scrollWidth, tCW = timelineScroll.clientWidth;
-        const psw = proxyScroll.scrollWidth,  pCW = proxyScroll.clientWidth;
-        const mismatch = (csw !== tsw) || (csw !== psw);
-        dbg.textContent = `vw=${vw().toFixed(2)} • total=${totalUnits} • visible=${visibleUnits} • px/u=${pxPerUnit.toFixed(4)} • chartSW=${csw} • timelineSW=${tsw} • proxySW=${psw} • MISMATCH=${mismatch}`;
+        const sw=chartScroll.scrollWidth, cw=chartScroll.clientWidth;
+        dbg.textContent = `view=${view} preset=${preset} • visible=${visibleUnits} total=${currentTotalUnits} • vw=${vw().toFixed(2)} • content=${sw}px • px/u=${currentPxPerUnit.toFixed(4)} • max=${sw-cw}px`;
       }
     }
 
@@ -266,16 +208,18 @@ const GanttChart: React.FC = () => {
       window.addEventListener('resize', setTableVar);
     })();
 
-    (function alignTimelineZero(){
+    // Calibrate timeline alignment
+    (function calibrateTimeline(){
       const table     = document.getElementById('gantt-table-left');
       const chartView = document.getElementById('gantt-chart-scroll');
       const tContent  = document.getElementById('gantt-timeline-content');
 
-      if (!table || !chartView || !tContent) return;
-
-      function findBarStartX(){
-        const firstBar = document.querySelector('.gantt-task-bar');
-        return firstBar ? Math.round(firstBar.getBoundingClientRect().left) : null;
+      function findBarStartX() {
+        const candidate =
+          document.querySelector('[data-gantt-x0]') ||
+          document.querySelector('.gantt-row-track') ||
+          document.querySelector('.task-bar');
+        return candidate ? candidate.getBoundingClientRect().left : null;
       }
 
       function measureAndApply() {
@@ -312,14 +256,15 @@ const GanttChart: React.FC = () => {
     
     if (!chart || !proxy || !timeline) return;
     
-    let syncing = false;
-    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){
-      if (syncing) return; syncing = true;
-      a.scrollLeft = from.scrollLeft;
-      b.scrollLeft = from.scrollLeft;
-      syncing = false;
+    // Scroll sync (loop-safe)
+    let syncing=false;
+    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){ 
+      if(syncing) return; 
+      syncing=true; 
+      a.scrollLeft=from.scrollLeft; 
+      b.scrollLeft=from.scrollLeft; 
+      syncing=false; 
     }
-    
     const syncFromProxy = () => sync(proxy, chart, timeline);
     const syncFromChart = () => sync(chart, proxy, timeline);
     const syncFromTimeline = () => sync(timeline, proxy, chart);
@@ -336,23 +281,18 @@ const GanttChart: React.FC = () => {
   }, []);
 
   return (
-    <div id="gantt-root">
-      {/* Header - Sticky */}
+    <div id="gantt-container">
+      {/* Header - Fixed */}
       <div id="gantt-header">
-        <div id="gantt-header-grid">
-          {/* Left column - bound to table width */}
-          <div id="gantt-title">
-            <h2 className="text-lg font-semibold text-gray-200">Resources</h2>
-          </div>
-          
-          {/* Right column */}
-          <div>
-            <div id="gantt-controls" className="mb-3">
+        <div id="gantt-header-row">
+          {/* Left pane - Controls (20%, fixed width, pinned) */}
+          <div id="gantt-controls-left">
+            <div className="controls-row">
               <div className="ctrl">
                 <label>View:</label>
                 <select
                   value={viewConfig.type}
-                  onChange={(e) => handleViewTypeChange(e.target.value as ViewType)}
+                  onChange={(e) => setViewConfig(prev => ({ ...prev, type: e.target.value as ViewConfig['type'] }))}
                 >
                   <option value="hour">Hour</option>
                   <option value="week">Week</option>
