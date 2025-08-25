@@ -30,7 +30,9 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key={`hour-${hour}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className="absolute top-1 text-xs text-gray-300 font-medium"
+              className={`absolute top-1 text-xs text-gray-300 font-medium ${
+                hour === 0 ? 'gantt-tick--first' : ''
+              }`}
               style={{
                 // Labels: 0 align-left; 1..23 centered (translateX(-50%)); 24 align-right (translateX(-100%))
                 left: hour === 0 ? '2px' : 'auto',
@@ -56,7 +58,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key="end-cap" className="absolute top-0 h-full border-l border-gray-500" style={{ left: x }}>
             <div 
-              className="absolute top-1 text-xs text-gray-300 font-medium"
+              className="absolute top-1 text-xs text-gray-300 font-medium gantt-tick--last"
               style={{
                 left: 'auto',
                 right: '2px',
@@ -99,7 +101,9 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key={`day-${day}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className="absolute top-1 text-xs text-gray-300 font-medium"
+              className={`absolute top-1 text-xs text-gray-300 font-medium ${
+                day === 0 ? 'gantt-tick--first' : ''
+              }`}
               style={{
                 // Label for each day cell placed at x = d*pxPerUnit + pxPerUnit/2, centered
                 left: day === 0 ? '2px' : `${pxPerUnit/2}px`,
@@ -144,7 +148,9 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
         ticks.push(
           <div key={`day-${day}`} className="absolute top-0 h-full border-l border-gray-600" style={{ left: x }}>
             <div 
-              className="absolute top-1 text-xs text-gray-300 font-medium"
+              className={`absolute top-1 text-xs text-gray-300 font-medium ${
+                day === 0 ? 'gantt-tick--first' : day === dim - 1 ? 'gantt-tick--last' : ''
+              }`}
               style={{
                 // Labels for days 1..dim centered in their cells; edges like Hour/Week
                 left: day === 0 ? '2px' : 'auto',

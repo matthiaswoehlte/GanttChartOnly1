@@ -56,6 +56,67 @@ const GanttChart: React.FC = () => {
     });
   };
 
+  const handleViewTypeChange = (type: ViewType) => {
+    let preset: HourPreset | WeekPreset | MonthPreset;
+    
+    switch (type) {
+      case 'hour':
+        preset = '24 Hours' as HourPreset;
+        break;
+      case 'week':
+        preset = 'Full Week' as WeekPreset;
+        break;
+      case 'month':
+        preset = 'Full Month' as MonthPreset;
+        break;
+    }
+    
+    setViewConfig({
+      ...viewConfig,
+      type,
+      preset
+    });
+  };
+
+  const renderPresetOptions = () => {
+    switch (viewConfig.type) {
+      case 'hour':
+        return (
+          <select
+            value={viewConfig.preset}
+            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as HourPreset})}
+          >
+            <option value="4 Hours">4 Hours</option>
+            <option value="6 Hours">6 Hours</option>
+            <option value="12 Hours">12 Hours</option>
+            <option value="18 Hours">18 Hours</option>
+            <option value="24 Hours">24 Hours</option>
+          </select>
+        );
+      case 'week':
+        return (
+          <select
+            value={viewConfig.preset}
+            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as WeekPreset})}
+          >
+            <option value="Work Week">Work Week</option>
+            <option value="Full Week">Full Week</option>
+          </select>
+        );
+      case 'month':
+        return (
+          <select
+            value={viewConfig.preset}
+            onChange={(e) => setViewConfig({...viewConfig, preset: e.target.value as MonthPreset})}
+          >
+            <option value="7 Days">7 Days</option>
+            <option value="14 Days">14 Days</option>
+            <option value="Full Month">Full Month</option>
+          </select>
+        );
+    }
+  };
+
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
     const chartScroll    = document.getElementById('gantt-chart-scroll');
@@ -184,6 +245,37 @@ const GanttChart: React.FC = () => {
     };
   }, [viewConfig]);
 
+  // Align zero and controls
+  useEffect(() => {
+    const table   = document.getElementById('gantt-table-left');
+    const tScroll = document.getElementById('gantt-timeline-scroll');
+    const cScroll = document.getElementById('gantt-chart-scroll');
+
+    if (!table || !tScroll || !cScroll) return;
+
+    function setTableVar(){
+      const w = Math.round(table.getBoundingClientRect().width);   // includes border
+      document.documentElement.style.setProperty('--gantt-table-w', w + 'px');
+    }
+    
+    // Run now and on resize
+    setTableVar();
+    const resizeObserver = new ResizeObserver(setTableVar);
+    resizeObserver.observe(table);
+    
+    const handleResize = () => setTableVar();
+    window.addEventListener('resize', handleResize);
+
+    // Guard: left paddings must be zero on scroll containers
+    tScroll.style.paddingLeft = '0px';
+    cScroll.style.paddingLeft = '0px';
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
     const chart = document.getElementById('gantt-chart-scroll');
@@ -219,7 +311,7 @@ const GanttChart: React.FC = () => {
     <div id="gantt-root">
       {/* Header - Sticky */}
       <div id="gantt-header">
-        <div className="grid grid-cols-5 h-auto">
+        <div id="gantt-header-grid" className="grid grid-cols-5 h-auto">
           {/* Left column - 20% */}
           <div className="col-span-1 bg-gray-800 px-4 py-3 border-r border-gray-600">
             <h2 className="text-lg font-semibold text-gray-200">Resources</h2>
@@ -227,26 +319,39 @@ const GanttChart: React.FC = () => {
           
           {/* Right column - 80% */}
           <div className="col-span-4 bg-gray-800 px-4 py-3">
-            <div className="flex items-center gap-4 mb-3">
-              <ViewControls
-                viewConfig={viewConfig}
-                onViewConfigChange={setViewConfig}
-              />
+            <div id="gantt-controls" className="mb-3">
+              <div className="ctrl">
+                <label>View:</label>
+                <select
+                  value={viewConfig.type}
+                  onChange={(e) => handleViewTypeChange(e.target.value as ViewType)}
+                >
+                  <option value="hour">Hour</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </select>
+              </div>
               
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-300 font-medium">Month:</label>
+              <div className="ctrl">
+                <label>Preset:</label>
+                {renderPresetOptions()}
+              </div>
+              
+              <div className="ctrl">
+                <label>Month:</label>
                 <input
                   id="gantt-month"
                   type="month"
                   value={`${viewConfig.selectedDate.getFullYear()}-${(viewConfig.selectedDate.getMonth() + 1).toString().padStart(2, '0')}`}
                   onChange={handleMonthChange}
-                  className="px-3 py-1 bg-gray-700 text-white border border-gray-600 rounded text-sm"
                 />
               </div>
               
-              <span id="gantt-date-label" className="text-sm text-gray-300">
-                {formatDateLabel(viewConfig.selectedDate)}
-              </span>
+              <div className="ctrl">
+                <span id="gantt-date-label">
+                  {formatDateLabel(viewConfig.selectedDate)}
+                </span>
+              </div>
             </div>
             
             {/* Timeline Ruler */}
@@ -260,6 +365,9 @@ const GanttChart: React.FC = () => {
               </div>
             </div>
           </div>
+          
+          {/* Header vertical rule */}
+          <div id="gantt-header-vrule" aria-hidden="true"></div>
         </div>
       </div>
 
