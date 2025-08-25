@@ -172,7 +172,7 @@ const TaskBar: React.FC<TaskBarProps> = ({
         const newLeft = Math.max(0, mouseX);
         const newUnitsFromAnchor = newLeft / pxPerUnit;
         const msPerUnit = viewConfig.type === 'hour' ? 3600000 : 86400000;
-        const newStartDate = new Date(anchorStart + newUnitsFromAnchor * msPerUnit);
+        const newStartDate = new Date(anchorTime.getTime() + newUnitsFromAnchor * msPerUnit);
         
         if (newStartDate < task.endDate) {
           updateTooltip(e, newStartDate, task.endDate);
