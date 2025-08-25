@@ -510,6 +510,56 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Unified content width and end-reach fix
+  useEffect(() => {
+    (function exposeGanttWidthFix(){
+      function parseHourPreset(preset){
+        const m = String(preset).match(/(\d+)/);
+        return m ? Math.max(1, parseInt(m[1],10)) : 24;
+      }
+
+      // call after du View/Preset/Month gesetzt und die Ticks/Bars gerendert hast
+      window.ganttEnsureReachEnd = function ganttEnsureReachEnd(view, presetLabel, anchorDate){
+        const chartScroll   = document.getElementById('gantt-chart-scroll');
+        const chartContent  = document.getElementById('gantt-chart-content');
+        const timeScroll    = document.getElementById('gantt-timeline-scroll');
+        const timeContent   = document.getElementById('gantt-timeline-content');
+        if(!chartScroll || !chartContent || !timeScroll || !timeContent) return;
+
+        // 1) Bestimme total/visible
+        let totalUnits=24, visibleUnits=24;
+        if (view === 'Hour'){
+          totalUnits = 24;
+          visibleUnits = parseHourPreset(presetLabel);                 // 24|18|12|6|4
+        } else if (view === 'Month'){
+          const d = anchorDate instanceof Date ? anchorDate : new Date();
+          const y = d.getFullYear(), m = d.getMonth();
+          totalUnits = new Date(y, m+1, 0).getDate();                  // 28..31
+          visibleUnits = /14/.test(presetLabel) ? 14 : /7/.test(presetLabel) ? 7 : totalUnits;
+        } else {
+          // Week ist hier nicht horizontal scrollend; nichts zu tun
+          return;
+        }
+
+        // 2) Breite deterministisch (Viewport × Ratio), EIN Wert für beide Contents
+        const viewportPx = chartScroll.clientWidth || 0;
+        const contentPx  = Math.max(0, Math.round(viewportPx * (totalUnits / Math.max(1,visibleUnits))));
+        chartContent.style.width  = contentPx + 'px';
+        timeContent.style.width   = contentPx + 'px';
+
+        // 3) Optional: pxPerUnit global merken, falls Bars/Ticks ihn brauchen
+        window.__ganttPxPerUnit = contentPx / totalUnits;
+
+        // 4) Scrollstand validieren + Sync (Bars -> Timeline)
+        requestAnimationFrame(() => {
+          const maxChart = chartScroll.scrollWidth - chartScroll.clientWidth;
+          if (chartScroll.scrollLeft > maxChart) chartScroll.scrollLeft = maxChart;
+          if (timeScroll.scrollLeft  !== chartScroll.scrollLeft) timeScroll.scrollLeft = chartScroll.scrollLeft;
+        });
+      };
+    })();
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
