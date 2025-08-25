@@ -42,33 +42,36 @@ html, body, #root, #gantt-root {
 /* single divider lives on the TABLE ONLY */
 
 /* Header grid uses EXACTLY the table width from a CSS var we set in JS */
-#gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
+#gantt-header { position: sticky; top: 0; z-index: 10; background: rgba(15,23,42,.95); border-bottom: 1px solid #374151; }
 #gantt-header-grid {
-  display:grid;
-  grid-template-columns: var(--gantt-left-col) 1fr; /* 20% / 80% */
-  align-items:center;
-  column-gap: 0;
-  position:relative;         /* anchor for vrule */
-  padding:12px 16px 4px 16px;
+  position: relative;                 /* for the vrule overlay */
+  display: grid;
+  grid-template-columns: var(--gantt-left-col) 1fr;  /* 20% / 80% */
+  column-gap: 0 !important;
+  gap: 0 !important;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  align-items: center;
+  padding: 12px 16px 4px 16px;
 }
 
 /* Header left cell ("Resources"): trim padding, no trailing space, border aligns with body */
 #gantt-title {
-  display: inline-block;
+  display: inline-flex;
   width: auto !important;          /* no full-width */
   inline-size: max-content;        /* shrink to text */
-  padding-left: 12px;       /* small indent */
-  padding-right: 0;         /* no extra right padding */
-  margin: 0;
+  align-items: center;
   justify-self: start;             /* stay left in the grid cell */
+  padding: 0 0 0 12px;                /* small left indent only */
+  margin: 0;
+  border: 0 !important;               /* divider handled by overlay, not here */
   overflow: hidden;
-  border-right: 0 !important;    /* remove if present */
 }
 #gantt-title > h2 {
-  margin: 0;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
+  overflow: hidden;
+  margin: 0;
 }
 
 /* Header right block - controls + timeline with no left spacing */
@@ -76,10 +79,10 @@ html, body, #root, #gantt-root {
   grid-column: 2;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border-left: 1px solid #374151;  /* visual divider at the grid column boundary */
-  padding-left: 0 !important;
+  gap: 8px;                            /* vertical only */
   margin-left: 0 !important;
+  padding-left: 0 !important;
+  border-left: 0 !important;           /* avoid double line */
 }
 
 /* controls stay on one row */
@@ -124,8 +127,12 @@ html, body, #root, #gantt-root {
 
 /* header overlay: draw the same divider in the header for easy visual check */
 #gantt-header-vrule {
-  position:absolute; left: var(--gantt-table-w, 280px); top:0; bottom:0;
-  width:1px; background:#374151; pointer-events:none; z-index:5;
+  position: absolute;
+  left: calc(var(--gantt-left-col));   /* the true 20% boundary */
+  top: 0; bottom: 0;
+  width: 1px;
+  background: #374151;
+  pointer-events: none;
 }
 
 /* first/last tick label alignment helpers */
