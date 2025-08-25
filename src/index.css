@@ -54,25 +54,21 @@ html, body, #root, #gantt-root {
 
 /* Header left cell ("Resources"): trim padding, no trailing space, border aligns with body */
 #gantt-title {
-  box-sizing: border-box;
-  width: 100%;
+  display: inline-block;
+  width: auto !important;          /* no full-width */
+  inline-size: max-content;        /* shrink to text */
   padding-left: 12px;       /* small indent */
   padding-right: 0;         /* no extra right padding */
   margin: 0;
-  border-right: 1px solid #374151;  /* same divider as body */
+  justify-self: start;             /* stay left in the grid cell */
   overflow: hidden;
-  display: flex;               /* center-align the short h2 nicely */
-  align-items: center;
+  border-right: 0 !important;    /* remove if present */
 }
 #gantt-title > h2 {
-  display: inline-block;       /* allow intrinsic width */
-  width: auto;                 /* no stretch */
-  inline-size: max-content;    /* prefer intrinsic text width */
-  max-width: 40%;              /* safety cap as requested; remove if not needed */
   margin: 0;
   white-space: nowrap;
-  text-overflow: ellipsis;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Header right block - controls + timeline with no left spacing */
@@ -81,6 +77,7 @@ html, body, #root, #gantt-root {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border-left: 1px solid #374151;  /* visual divider at the grid column boundary */
   padding-left: 0 !important;
   margin-left: 0 !important;
 }
