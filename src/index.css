@@ -43,7 +43,17 @@ html, body, #root, #gantt-root {
 
 /* timeline & chart contents must start at x=0 (no left padding/margins) */
 #gantt-timeline-scroll, #gantt-chart-scroll { padding-left:0; }
-#gantt-timeline-content, #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; transform:none; }
+#gantt-timeline-content, #gantt-chart-content { margin-left:0 !important; padding-left:0 !important; }
+
+/* Timeline content can be nudged by CSS var --gantt-x0 (default 0) */
+#gantt-timeline-content {
+  position: relative;
+  transform: translateX(var(--gantt-x0, 0px));
+}
+
+#gantt-chart-content {
+  transform: none;
+}
 
 /* header overlay: draw the same divider in the header for easy visual check */
 #gantt-header-vrule {
