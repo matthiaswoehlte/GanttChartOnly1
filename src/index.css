@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Timeline offset tuning */
+:root {
+  --gantt-timeline-offset: -26px;  /* negative -> shift left by 26px */
+}
+
 /* box model */
 * { box-sizing: border-box; }
 
@@ -21,7 +26,10 @@ html, body, #root, #gantt-root {
 
 /* No hidden left padding/margins on scrollers/contents */
 #gantt-timeline-scroll, #gantt-timeline-content,
-#gantt-chart-scroll,    #gantt-chart-content { padding-left:0; margin-left:0; }
+#gantt-chart-scroll,    #gantt-chart-content {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
 
 /* Only the table draws the divider (avoid double lines) */
 #gantt-chart-scroll { border-left:0; }
@@ -61,7 +69,7 @@ html, body, #root, #gantt-root {
 /* Timeline content can be nudged by CSS var --gantt-x0 (default 0) */
 #gantt-timeline-content {
   position: relative;
-  transform: translateX(var(--gantt-xfix, 0px));
+  transform: translateX(var(--gantt-timeline-offset));
 }
 
 /* The zero anchor marks x=0 for measurement */
