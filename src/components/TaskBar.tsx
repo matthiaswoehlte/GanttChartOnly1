@@ -52,21 +52,22 @@ const TaskBar: React.FC<TaskBarProps> = ({
   
   const anchorTime = getAnchorTime();
   
-  // Calculate position and width using SAME pxPerUnit
+  // Calculate position and width using SAME pxPerUnit (exact same as layout engine)
+  const MS_H = 3600000, MS_D = 86400000;
   let left, width;
   
   if (viewConfig.type === 'hour') {
-    // Hour: x = ((startMs - anchorMs)/3600000) * pxPerUnit
-    const unitsFromAnchor = (task.startDate.getTime() - anchorTime.getTime()) / 3600000;
-    const durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / 3600000;
-    left = unitsFromAnchor * pxPerUnit;
-    width = durationUnits * pxPerUnit;
+    // Hour: x = ((start - startOfDay(selDate)) / MS_H) * pxPerUnit; w = ((end - start)/MS_H) * pxPerUnit
+    left = ((task.startDate.getTime() - anchorTime.getTime()) / MS_H) * pxPerUnit;
+    width = ((task.endDate.getTime() - task.startDate.getTime()) / MS_H) * pxPerUnit;
+  } else if (viewConfig.type === 'week') {
+    // Week: x = ((start - isoMonday(selDate)) / MS_D) * pxPerUnit; w = ((end - start)/MS_D) * pxPerUnit
+    left = ((task.startDate.getTime() - anchorTime.getTime()) / MS_D) * pxPerUnit;
+    width = ((task.endDate.getTime() - task.startDate.getTime()) / MS_D) * pxPerUnit;
   } else {
-    // Week/Month: x = ((startMs - anchorMs)/86400000) * pxPerUnit
-    const unitsFromAnchor = (task.startDate.getTime() - anchorTime.getTime()) / 86400000;
-    const durationUnits = (task.endDate.getTime() - task.startDate.getTime()) / 86400000;
-    left = unitsFromAnchor * pxPerUnit;
-    width = durationUnits * pxPerUnit;
+    // Month: x = ((start - firstOfMonth(selDate)) / MS_D) * pxPerUnit; w = ((end - start)/MS_D)*pxPerUnit
+    left = ((task.startDate.getTime() - anchorTime.getTime()) / MS_D) * pxPerUnit;
+    width = ((task.endDate.getTime() - task.startDate.getTime()) / MS_D) * pxPerUnit;
   }
   
 

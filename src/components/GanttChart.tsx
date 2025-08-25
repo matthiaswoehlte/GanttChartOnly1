@@ -17,7 +17,7 @@ const GanttChart: React.FC = () => {
     selectedDate: new Date()
   });
 
-  // Layout state
+  // Layout state - will be set by the layout engine
   const [pxPerUnit, setPxPerUnit] = useState(0);
   const [totalUnits, setTotalUnits] = useState(0);
 
@@ -56,136 +56,126 @@ const GanttChart: React.FC = () => {
     });
   };
 
-  // ===== Width/Scroll Logic (Single Source of Truth) =====
-  
-  // Helper functions
-  function firstOfMonth(d: Date): Date { 
-    const x = new Date(d); 
-    x.setHours(0, 0, 0, 0); 
-    x.setDate(1); 
-    return x; 
-  }
-  
-  function daysInMonth(d: Date): number { 
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); 
-  }
-  
-  function viewportW(): number { 
-    return document.getElementById('gantt-chart-scroll')?.getBoundingClientRect().width || 0; 
-  }
+  // ===== RATIO-BASED LAYOUT ENGINE =====
+  useEffect(() => {
+    // Elements
+    const chartScroll    = document.getElementById('gantt-chart-scroll');
+    const chartContent   = document.getElementById('gantt-chart-content');
+    const timelineScroll = document.getElementById('gantt-timeline-scroll');
+    const timelineCont   = document.getElementById('gantt-timeline-content');
+    const proxyScroll    = document.getElementById('gantt-hscroll-proxy');
+    const proxyInner     = document.getElementById('gantt-hscroll-inner');
+    const dbg            = document.getElementById('dbg');
 
-  // NEW: robust preset parsing
-  function parseNumericPreset(preset: string | number): number | 'FULL' {
-    if (typeof preset === 'number') return preset;
-    const s = String(preset).trim();                 // e.g. "14 Days", "6 Hours", "24 Hours"
-    if (/^full/i.test(s)) return 'FULL';
-    const m = s.match(/(\d+)/);                      // extract first number safely
-    return m ? Number(m[1]) : NaN;
-  }
+    if (!chartScroll || !chartContent || !timelineScroll || !timelineCont || !proxyScroll || !proxyInner) {
+      return;
+    }
 
-  function applyContentWidth(px: number) {
-    const w = Math.ceil(px) + 2;                     // +2px safety so last unit is reachable
-    const chartContent = document.getElementById('gantt-chart-content');
-    const timelineCont = document.getElementById('gantt-timeline-content');
-    const proxyInner = document.getElementById('gantt-hscroll-inner');
-    
-    if (chartContent) {
+    // Read from UI state
+    let view = viewConfig.type;
+    let preset = viewConfig.preset;
+    let selDate = viewConfig.selectedDate;
+
+    // Helpers
+    const MS_H = 3600000, MS_D = 86400000;
+    function startOfDay(d: Date){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+    function firstOfMonth(d: Date){ const x=startOfDay(d); x.setDate(1); return x; }
+    function isoMonday(d: Date){ const x=startOfDay(d); const wd=(x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+    function daysInMonth(d: Date){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+    function vw(){ return chartScroll.getBoundingClientRect().width; }
+    function parseNum(v: any){ if (typeof v==='number') return v; const m=String(v).match(/(\d+)/); return m?Number(m[1]):NaN; }
+    function isFull(v: any){ return /full/i.test(String(v)); }
+
+    function applyW(px: number){
+      const w = Math.ceil(px) + 1;   // minimal safety
       chartContent.style.width = chartContent.style.minWidth = w + 'px';
-    }
-    if (timelineCont) {
       timelineCont.style.width = timelineCont.style.minWidth = w + 'px';
+      proxyInner.style.width   = w + 'px';
+      document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
     }
-    if (proxyInner) {
-      proxyInner.style.width = w + 'px';
+    function clampH(){
+      requestAnimationFrame(()=>{
+        const maxC = chartScroll.scrollWidth - chartScroll.clientWidth;
+        const maxP = proxyScroll.scrollWidth - proxyScroll.clientWidth;
+        chartScroll.scrollLeft = Math.max(0, Math.min(chartScroll.scrollLeft, maxC));
+        proxyScroll.scrollLeft = Math.max(0, Math.min(proxyScroll.scrollLeft, maxP));
+      });
     }
-    document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
-  }
 
-  function clampHorizontal() {
-    const chart = document.getElementById('gantt-chart-scroll');
-    const proxy = document.getElementById('gantt-hscroll-proxy');
-    requestAnimationFrame(() => {
-      if (chart && proxy) {
-        const maxC = chart.scrollWidth - chart.clientWidth;
-        const maxP = proxy.scrollWidth - proxy.clientWidth;
-        chart.scrollLeft = Math.max(0, Math.min(chart.scrollLeft, maxC));
-        proxy.scrollLeft = Math.max(0, Math.min(proxy.scrollLeft, maxP));
-      }
-    });
-  }
+    // The key: ratio-based width
+    // contentWidth = viewportWidth * (totalUnits / visibleUnits)
+    // pxPerUnit    = contentWidth / totalUnits
+    let currentPxPerUnit = 0, currentTotalUnits = 0, visibleUnits = 0;
 
-  // Replace layout calculation with exact function
-  function recomputeLayout(view: string, preset: string, selectedDate: Date) {
-    const chart = document.getElementById('gantt-chart-scroll');
-    const proxy = document.getElementById('gantt-hscroll-proxy');
-    const timeline = document.getElementById('gantt-timeline-scroll');
-    const vw = viewportW();                           // FRACTIONAL viewport width
-    let newPxPerUnit = 0, totalUnits = 0, visibleUnits = 0;
-    const parsed = parseNumericPreset(preset);
-
-    if (view === 'hour') {
-      totalUnits = 24;                               // always 24 hours
-      visibleUnits = (parsed === 'FULL') ? 24 : (typeof parsed === 'number' ? parsed : 24);
-      if (!visibleUnits || Number.isNaN(visibleUnits)) visibleUnits = 24;  // fallback
-
-      newPxPerUnit = vw / visibleUnits;                  // px per hour
-      applyContentWidth(totalUnits * newPxPerUnit);
+    function layoutHour(){
+      const total = 24;
+      const v = parseNum(preset);                 // 24|18|12|6|4, else NaN
+      visibleUnits = (!v || Number.isNaN(v)) ? 24 : v;
+      currentTotalUnits = total;
+      const cw = vw() * (currentTotalUnits / visibleUnits);
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
 
       const noScroll = visibleUnits === 24;
-      if (chart) chart.style.overflowX = noScroll ? 'hidden' : 'auto';
-      if (proxy) proxy.style.display = noScroll ? 'none' : 'block';
+      chartScroll.style.overflowX = noScroll ? 'hidden' : 'auto';
+      proxyScroll.style.display   = noScroll ? 'none'   : 'block';
     }
 
-    if (view === 'week') {
-      // Preset: "Full Week" or "Work Week" (may arrive as labels)
-      const isFull = /full/i.test(String(preset));
-      totalUnits = isFull ? 7 : 5;                  // days in span
-      visibleUnits = totalUnits;                      // fully visible (NO H-scroll)
+    function layoutWeek(){
+      const days = /work/i.test(String(preset)) ? 5 : 7;  // default Full=7
+      currentTotalUnits = days; visibleUnits = days;
+      const cw = vw();                                    // no horizontal scroll
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
+      chartScroll.style.overflowX = 'hidden';
+      proxyScroll.style.display   = 'none';
+      chartScroll.scrollLeft = 0; timelineScroll.scrollLeft = 0;
+    }
 
-      newPxPerUnit = vw / visibleUnits;                  // px per day
-      applyContentWidth(totalUnits * newPxPerUnit);
-
-      if (chart) {
-        chart.style.overflowX = 'hidden';
-        chart.scrollLeft = 0;
+    function layoutMonth(){
+      const dim = daysInMonth(firstOfMonth(selDate));     // 28..31
+      currentTotalUnits = dim;
+      if (isFull(preset)) visibleUnits = dim;
+      else {
+        const v = parseNum(preset);                       // 7|14|dim
+        visibleUnits = (!v || Number.isNaN(v)) ? 14 : v;
+        if (visibleUnits > dim) visibleUnits = dim;
       }
-      if (proxy) proxy.style.display = 'none';
-      if (timeline) timeline.scrollLeft = 0;
+      const cw = vw() * (currentTotalUnits / visibleUnits);      // ratio → guarantees full span
+      applyW(cw);
+      currentPxPerUnit = cw / currentTotalUnits;
+      const scrollable = visibleUnits < currentTotalUnits;
+      chartScroll.style.overflowX = scrollable ? 'auto' : 'hidden';
+      proxyScroll.style.display   = scrollable ? 'block' : 'none';
     }
 
-    if (view === 'month') {
-      const anchor = firstOfMonth(selectedDate);
-      const dim = daysInMonth(anchor);             // 28..31
-      totalUnits = dim;
-
-      if (parsed === 'FULL' || parsed === dim) {
-        visibleUnits = dim;                           // Full Month → NO H-scroll
-      } else {
-        // preset likely like "7 Days" or "14 Days"
-        const n = typeof parsed === 'number' ? parsed : NaN;
-        visibleUnits = (!n || Number.isNaN(n)) ? 14 : n;   // fallback to 14 if parsing fails
+    function recomputeLayout(){
+      if (view === 'hour')  layoutHour();
+      if (view === 'week')  layoutWeek();
+      if (view === 'month') layoutMonth();
+      clampH();
+      
+      // Update React state
+      setPxPerUnit(currentPxPerUnit);
+      setTotalUnits(currentTotalUnits);
+      
+      if (dbg){
+        const sw=chartScroll.scrollWidth, cw=chartScroll.clientWidth;
+        dbg.textContent = `view=${view} preset=${preset} • visible=${visibleUnits} total=${currentTotalUnits} • vw=${vw().toFixed(2)} • content=${sw}px • px/u=${currentPxPerUnit.toFixed(4)} • max=${sw-cw}px`;
       }
-
-      newPxPerUnit = vw / visibleUnits;                  // px per day
-      applyContentWidth(totalUnits * newPxPerUnit);
-
-      const scrollable = visibleUnits < totalUnits;
-      if (chart) chart.style.overflowX = scrollable ? 'auto' : 'hidden';
-      if (proxy) proxy.style.display = scrollable ? 'block' : 'none';
     }
 
-    // Update state
-    setPxPerUnit(newPxPerUnit);
-    setTotalUnits(totalUnits);
+    // Initial layout
+    recomputeLayout();
 
-    // Clamp and debug
-    clampHorizontal();
-    const dbg = document.getElementById('dbg');
-    if (dbg && chart) {
-      const sw = chart.scrollWidth, cw = chart.clientWidth;
-      dbg.textContent = `view=${view} • preset=${preset} • parsed=${parsed} • vw=${vw.toFixed(2)} • visible=${visibleUnits} • total=${totalUnits} • content=${sw}px • client=${cw}px • max=${sw - cw}px`;
-    }
-  }
+    // ResizeObserver
+    const resizeObserver = new ResizeObserver(() => recomputeLayout());
+    resizeObserver.observe(chartScroll);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [viewConfig]);
 
   // Scroll synchronization
   useEffect(() => {
@@ -195,13 +185,14 @@ const GanttChart: React.FC = () => {
     
     if (!chart || !proxy || !timeline) return;
     
-    let syncing = false;
-    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement) { 
-      if (syncing) return; 
-      syncing = true; 
-      a.scrollLeft = from.scrollLeft; 
-      b.scrollLeft = from.scrollLeft; 
-      syncing = false; 
+    // Scroll sync (loop-safe)
+    let syncing=false;
+    function sync(from: HTMLElement, a: HTMLElement, b: HTMLElement){ 
+      if(syncing) return; 
+      syncing=true; 
+      a.scrollLeft=from.scrollLeft; 
+      b.scrollLeft=from.scrollLeft; 
+      syncing=false; 
     }
     
     const syncFromProxy = () => sync(proxy, chart, timeline);
@@ -217,24 +208,6 @@ const GanttChart: React.FC = () => {
       chart.removeEventListener('scroll', syncFromChart);
       timeline.removeEventListener('scroll', syncFromTimeline);
     };
-  }, []);
-
-  // Call recomputeLayout on view/preset/date changes
-  useEffect(() => {
-    recomputeLayout(viewConfig.type, viewConfig.preset, viewConfig.selectedDate);
-  }, [viewConfig]);
-
-  // ResizeObserver on #gantt-chart-scroll
-  useEffect(() => {
-    const chartScroll = document.getElementById('gantt-chart-scroll');
-    if (!chartScroll) return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      recomputeLayout(viewConfig.type, viewConfig.preset, viewConfig.selectedDate);
-    });
-
-    resizeObserver.observe(chartScroll);
-    return () => resizeObserver.disconnect();
   }, []);
 
   return (
@@ -316,8 +289,8 @@ const GanttChart: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <div id="gantt-footer" className="bg-gray-800 px-4 py-2 border-t border-gray-600">
-        <div id="dbg" className="text-xs text-gray-400 font-mono">Debug info will appear here</div>
+      <div id="gantt-footer">
+        <div id="dbg" className="text-xs text-gray-400 font-mono bg-gray-800 px-4 py-2 border-t border-gray-600">Debug info will appear here</div>
       </div>
     </div>
   );

@@ -52,8 +52,6 @@ html, body, #root, #gantt-root {
 #gantt-chart-scroll {
   position: relative;
   flex: 1 1 auto;
-  overflow-x: auto;
-  overflow-y: hidden;
   padding-bottom: 16px;
 }
 
