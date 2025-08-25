@@ -5,6 +5,7 @@
 /* Timeline offset tuning */
 :root {
   --gantt-timeline-offset: -26px;  /* negative -> shift left by 26px */
+  --gantt-left-col: 20%;
 }
 
 /* box model */
@@ -45,11 +46,28 @@ html, body, #root, #gantt-root {
 #gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
 #gantt-header-grid {
   display:grid;
-  grid-template-columns: var(--gantt-table-w, 280px) 1fr;   /* <-- bound to table width */
+  grid-template-columns: var(--gantt-left-col) 1fr; /* 20% / 80% */
   align-items:center;
-  column-gap:16px;
+  column-gap:0;
   position:relative;         /* anchor for vrule */
   padding:12px 16px 4px 16px;
+}
+
+/* Header left cell ("Resources"): trim padding, no trailing space, border aligns with body */
+#gantt-title {
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 12px;       /* small indent */
+  padding-right: 0;         /* no extra right padding */
+  margin: 0;
+  border-right: 1px solid #374151;  /* same divider as body */
+  overflow: hidden;
+}
+#gantt-title > h2 {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  margin: 0;
 }
 
 /* controls stay on one row */
@@ -172,6 +190,19 @@ html, body, #root, #gantt-root {
   width: var(--gantt-content-w, 100%);
   min-width: var(--gantt-content-w, 100%);
   transform: none;
+}
+
+/* Body: left pane fixed to 20%, chart fills the rest */
+#gantt-table-left {
+  box-sizing: border-box;
+  flex: 0 0 var(--gantt-left-col);
+  width: var(--gantt-left-col);
+  min-width: var(--gantt-left-col);
+  border-right: 1px solid #374151;  /* same divider */
+}
+#gantt-chart-scroll {
+  flex: 1 1 auto;  /* remaining 80% */
+  border-left: 0;  /* divider only on the left pane */
 }
 
 #gantt-hscroll-proxy {
