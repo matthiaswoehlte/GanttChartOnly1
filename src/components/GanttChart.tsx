@@ -141,6 +141,9 @@ const GanttChart: React.FC = () => {
     const contentPx = viewportPx * (totalUnits / visibleUnits);
     const w = Math.ceil(contentPx) + 2;
     
+    // Set CSS variable for proxy scrollbar
+    document.documentElement.style.setProperty('--gantt-content-w', w + 'px');
+    
     chartContent.style.width = w + 'px';
     timelineContent.style.width = w + 'px';
 
@@ -318,29 +321,33 @@ const GanttChart: React.FC = () => {
     };
   }, [viewConfig]);
 
-  // Scroll sync (loop-safe, attach ONCE)
+  // 3-way scroll sync: timeline, chart, and proxy (loop-safe, attach ONCE)
   useEffect(() => {
     const chart = document.getElementById('gantt-chart-scroll');
     const timeline = document.getElementById('gantt-timeline-scroll');
+    const proxy = document.getElementById('gantt-hscroll-proxy');
     
-    if (!chart || !timeline) return;
+    if (!chart || !timeline || !proxy) return;
     
     let syncing = false;
-    function sync(from: HTMLElement, to: HTMLElement){
+    function sync(from: HTMLElement, ...tos: HTMLElement[]){
       if (syncing) return; syncing = true;
-      to.scrollLeft = from.scrollLeft;
+      tos.forEach(to => to.scrollLeft = from.scrollLeft);
       syncing = false;
     }
     
-    const syncFromChart = () => sync(chart, timeline);
-    const syncFromTimeline = () => sync(timeline, chart);
+    const syncFromChart = () => sync(chart, timeline, proxy);
+    const syncFromTimeline = () => sync(timeline, chart, proxy);
+    const syncFromProxy = () => sync(proxy, chart, timeline);
     
     chart.addEventListener('scroll', syncFromChart, { passive: true });
     timeline.addEventListener('scroll', syncFromTimeline, { passive: true });
+    proxy.addEventListener('scroll', syncFromProxy, { passive: true });
     
     return () => {
       chart.removeEventListener('scroll', syncFromChart);
       timeline.removeEventListener('scroll', syncFromTimeline);
+      proxy.removeEventListener('scroll', syncFromProxy);
     };
   }, []);
 
@@ -396,6 +403,11 @@ const GanttChart: React.FC = () => {
         </div>
       </div>
 
+      {/* Sticky proxy scrollbar */}
+      <div id="gantt-hscroll-proxy">
+        <div id="gantt-hscroll-track"></div>
+      </div>
+
       {/* Body - Scrollable */}
       <div id="gantt-body-scroll">
         <div id="gantt-body-row">
@@ -407,6 +419,8 @@ const GanttChart: React.FC = () => {
           {/* Right pane - Chart (80%, horizontal scroll only) */}
           <div id="gantt-chart-scroll">
             <div id="gantt-chart-content">
+              {/* Full-width stripe overlay */}
+              <div id="gantt-bg-grid" aria-hidden="true"></div>
               <ChartArea
                 tasks={tasks}
                 resources={resources}

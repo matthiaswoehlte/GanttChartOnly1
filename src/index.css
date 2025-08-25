@@ -113,19 +113,47 @@ body {
 #gantt-chart-scroll, #gantt-chart-content { position:relative; z-index: 1; }
 #gantt-header { z-index: 20; }
 
+/* Sticky proxy scroller that is always visible in viewport */
+#gantt-hscroll-proxy{
+  position: sticky; bottom: 0; z-index: 30;
+  height: 14px;                 /* only the scrollbar is visible */
+  overflow-x: auto; overflow-y: hidden;
+  background: transparent;
+}
+#gantt-hscroll-track{ width: var(--gantt-content-w); height: 1px; }
+
+/* Ensure the real scrollers have no transforms that could desync */
+#gantt-chart-scroll, #gantt-chart-content,
+#gantt-timeline-scroll, #gantt-timeline-content { transform: none !important; }
+
+/* === FULL-WIDTH STRIPES IN THE BAR AREA ===
+   Draw stripes once as an absolute overlay that spans the WHOLE content width. */
+#gantt-chart-content{ position: relative; }
+#gantt-bg-grid{
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    #1F2937 0 calc(var(--gantt-row-h)),
+    #374151 calc(var(--gantt-row-h)) calc(var(--gantt-row-h)*2)
+  );
+}
+/* Bars above the grid */
+.gantt-row, .gantt-row-bars{ position: relative; }
+.gantt-row{ height: var(--gantt-row-h); }
+.gantt-row-bars{ height: 100%; z-index: 1; }
+
 /* A) Alternating rows LEFT = RIGHT (single source of truth) */
 #gantt-table-left .table-row,
 #gantt-chart-content .gantt-row {
   height: var(--gantt-row-h);
-  background: #1F2937;
+  background: transparent; /* Grid overlay handles stripes */
   border-top: 0;
   border-bottom: 0;
 }
 
-#gantt-table-left .table-row:nth-child(odd),
-#gantt-chart-content .gantt-row:nth-child(odd) {
-  background: #374151;
-}
+/* Keep table row backgrounds for left side */
+#gantt-table-left .table-row { background: #1F2937; }
+#gantt-table-left .table-row:nth-child(odd) { background: #374151; }
 
 /* Only ONE vertical divider: right edge of table */
 #gantt-table-left { border-right: 1px solid #374151; }
