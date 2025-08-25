@@ -223,9 +223,9 @@ const GanttChart: React.FC = () => {
       setPxPerUnit(pxPerUnit);
       setTotalUnits(totalUnits);
       
-      // Re-calibrate timeline alignment after layout changes
-      if (window.__ganttCalibrateTimeline) {
-        window.__ganttCalibrateTimeline();
+      // Call timeline alignment after layout changes
+      if (window.__ganttAlignTimeline) {
+        window.__ganttAlignTimeline();
       }
       
       // Debug: show mismatches immediately
@@ -266,40 +266,43 @@ const GanttChart: React.FC = () => {
       window.addEventListener('resize', setTableVar);
     })();
 
-    // Align timeline to bars
-    (function setupTimelineCalibration(){
-      const chartScroll = document.getElementById('gantt-chart-scroll');
-      const timelineZero = document.getElementById('gantt-timeline-zero');
-      
-      if (!chartScroll || !timelineZero) return;
+    // Calibrate timeline alignment
+    (function calibrateTimeline(){
+      const table     = document.getElementById('gantt-table-left');
+      const chartView = document.getElementById('gantt-chart-scroll');
+      const tContent  = document.getElementById('gantt-timeline-content');
 
-      function measureAndApplyOffset(){
-        const vp = chartScroll.getBoundingClientRect();
-        
-        // 1) Find the visual bar start edge in the chart area:
-        // Prefer a dedicated marker on the track; otherwise fall back to first bar.
-        let barEdge =
+      function findBarStartX() {
+        const candidate =
           document.querySelector('[data-gantt-x0]') ||
           document.querySelector('.gantt-row-track') ||
           document.querySelector('.task-bar');
-
-        let delta = 0;
-        if (barEdge && timelineZero) {
-          const barLeft   = barEdge.getBoundingClientRect().left;
-          const zeroLeft  = timelineZero.getBoundingClientRect().left;
-          delta = Math.round(barLeft - zeroLeft);           // positive → shift timeline LEFT by that much
-        }
-        // Apply to CSS var (negative/positive both ok)
-        document.documentElement.style.setProperty('--gantt-xfix', delta + 'px');
+        return candidate ? candidate.getBoundingClientRect().left : null;
       }
 
-      // Run now, on resize and after fonts/layout changes
-      measureAndApplyOffset();
-      new ResizeObserver(measureAndApplyOffset).observe(chartScroll);
-      window.addEventListener('resize', measureAndApplyOffset);
+      function measureAndApply() {
+        if (!table || !chartView || !tContent) return;
 
-      // Expose for existing layout pipeline; call after recomputeLayout():
-      window.__ganttCalibrateTimeline = measureAndApplyOffset;
+        const dividerX   = Math.round(table.getBoundingClientRect().right); // the visual divider
+        const timeline0X = Math.round(tContent.getBoundingClientRect().left); // current timeline zero
+        const barStartX  = findBarStartX();
+
+        // Prefer aligning to the bar start; if unknown, align to divider
+        const targetX = (barStartX ?? dividerX);
+
+        // Shift timeline so its zero coincides with targetX:
+        const delta = targetX - timeline0X; // positive -> move RIGHT, negative -> move LEFT
+        document.documentElement.style.setProperty('--gantt-xfix', `${delta}px`);
+      }
+
+      // Run now & on layout changes
+      measureAndApply();
+      new ResizeObserver(measureAndApply).observe(chartView);
+      new ResizeObserver(measureAndApply).observe(table);
+      window.addEventListener('resize', measureAndApply);
+
+      // Call after every recompute/re-render
+      window.__ganttAlignTimeline = measureAndApply;
     })();
   }, []);
 
@@ -384,7 +387,6 @@ const GanttChart: React.FC = () => {
             {/* Timeline Ruler */}
             <div id="gantt-timeline-scroll">
               <div id="gantt-timeline-content">
-                <div id="gantt-timeline-zero" aria-hidden="true"></div>
                 <TimelineRuler
                   viewConfig={viewConfig}
                   pxPerUnit={pxPerUnit}

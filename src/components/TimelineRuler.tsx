@@ -34,7 +34,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 hour === 0 ? 'first' : hour === 23 ? 'last' : 'middle'
               }`}
               style={{
-                // Labels: 0 align-left; 1..23 centered (translateX(-50%)); 24 align-right (translateX(-100%))
+                // Labels: 0 align-left; 1..23 centered; 24 align-right
                 left: hour === 0 ? '2px' : 'auto',
                 right: 'auto',
                 transform: hour === 0 ? 'none' : 'translateX(-50%)',
@@ -65,7 +65,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 transform: 'translateX(-100%)'
               }}
             >
-              {formatHour(24)}
+              24
             </div>
           </div>
         );

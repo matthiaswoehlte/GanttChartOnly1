@@ -16,9 +16,22 @@ html, body, #root, #gantt-root {
 /* Apply box-sizing globally */
 * { box-sizing: border-box; }
 
-/* single divider lives on the TABLE ONLY */
-#gantt-table-left { border-right:1px solid #374151; }
+/* The whole timeline content can be nudged by a CSS var */
+#gantt-timeline-content { position:relative; transform: translateX(var(--gantt-xfix, 0px)); }
+
+/* No hidden left padding/margins on scrollers/contents */
+#gantt-timeline-scroll, #gantt-timeline-content,
+#gantt-chart-scroll,    #gantt-chart-content { padding-left:0; margin-left:0; }
+
+/* Only the table draws the divider (avoid double lines) */
 #gantt-chart-scroll { border-left:0; }
+#gantt-table-left   { border-right:1px solid #374151; }
+
+/* (Edge labels helpers) */
+.gantt-tick--first { transform: translateX(0) !important; text-align:left; }
+.gantt-tick--last  { transform: translateX(-100%) !important; text-align:right; }
+
+/* single divider lives on the TABLE ONLY */
 
 /* Header grid uses EXACTLY the table width from a CSS var we set in JS */
 #gantt-header { position:sticky; top:0; z-index:10; background:rgba(15,23,42,.95); border-bottom:1px solid #374151; }
