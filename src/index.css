@@ -17,7 +17,7 @@ body {
 }
 
 /* Header in flow, not overlay; right column stacked controls + timeline */
-#gantt-root { display:flex; flex-direction:column; min-height:100%; }
+#gantt-root { display:flex; flex-direction:column; }
 
 #gantt-header {
   position: sticky; top: 0; z-index: 20;     /* above content, aber im Flow */

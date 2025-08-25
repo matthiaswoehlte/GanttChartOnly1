@@ -1,6 +1,7 @@
 import React from 'react';
 import { Task, Resource, ViewConfig } from '../types';
 import { getStartOfDay, getStartOfWeek, getStartOfMonth, getEndOfMonth } from '../utils/dateUtils';
+import TaskBar from './TaskBar';
 
 interface ChartAreaProps {
   tasks: Task[];
@@ -105,25 +106,18 @@ const ChartArea: React.FC<ChartAreaProps> = ({
           >
             <div className="gantt-row-bars">
               {resourceTasks.map(task => {
-                const x = Math.max(0, timeToX(task.startDate));
-                const w = Math.max(24, timeToW(task.startDate, task.endDate));
-                
                 return (
-                  <div
+                  <TaskBar
                     key={task.id}
-                    className="gantt-bar"
-                    style={{
-                      left: `${x}px`,
-                      width: `${w}px`,
-                      backgroundColor: task.color,
-                      borderColor: task.color
-                    }}
-                    title={`${task.title} (${task.startDate.toLocaleString()} - ${task.endDate.toLocaleString()})`}
-                  >
-                    <span className="text-xs font-medium text-white truncate px-2 leading-8">
-                      {task.title}
-                    </span>
-                  </div>
+                    task={task}
+                    viewConfig={viewConfig}
+                    pxPerUnit={pxPerUnit}
+                    totalUnits={totalUnits}
+                    rowIndex={rowIndex}
+                    onUpdate={onTaskUpdate}
+                    onMove={onTaskMove}
+                    resources={resources}
+                  />
                 );
               })}
             </div>
