@@ -904,7 +904,6 @@ const GanttChart: React.FC = () => {
       const cs = document.getElementById('gantt-chart-scroll');
       if(!tc || !ts || !cc || !cs) return;
 
-      // 1) Breite vereinheitlichen (größerer Wert gewinnt)
       const num = v => (typeof v==='number'? v : parseFloat(v)||0);
       const wTc = Math.max(num(tc.style.width), tc.scrollWidth, tc.clientWidth);
       const wCc = Math.max(num(cc.style.width), cc.scrollWidth, cc.clientWidth);
@@ -915,7 +914,7 @@ const GanttChart: React.FC = () => {
         root.style.width    = W + 'px';
         root.style.minWidth = W + 'px';
 
-        // 2) Unsichtbarer End-Marker genau am rechten Rand → Scrollbereich sicher bis W
+        // unsichtbarer End-Marker exakt am rechten Rand
         let cap = root.querySelector('.gantt-endcap');
         if(!cap){
           cap = document.createElement('i');
@@ -925,18 +924,18 @@ const GanttChart: React.FC = () => {
         cap.style.cssText = `position:absolute;left:${W}px;top:0;width:1px;height:1px;pointer-events:none;opacity:0;`;
       });
 
-      // 3) Letztes Timeline-Label (falls vorhanden) exakt an den rechten Rand setzen
+      // letztes Timeline-Label (falls vorhanden) sicher nach innen rechts ausrichten
       (function fixLastLabel(){
         const labels = tc.querySelectorAll('.gantt-tick--label, .gantt-tick--last');
-        if(!labels || !labels.length) return;
+        if(!labels.length) return;
         const last = labels[labels.length - 1];
         last.style.position  = 'absolute';
         last.style.left      = W + 'px';
-        last.style.transform = 'translateX(-100%)'; // rechtsbündig, aber innerhalb des Contents
+        last.style.transform = 'translateX(-100%)';
         last.style.whiteSpace= 'nowrap';
       })();
 
-      // Optional: einmalige Ausrichtung Timeline ←→ Bars (kein neuer Listener!)
+      // einmalige Ausrichtung Timeline ← Bars (keine neuen Listener)
       requestAnimationFrame(() => { ts.scrollLeft = cs.scrollLeft; });
     })();
   }, []);
