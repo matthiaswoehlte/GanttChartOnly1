@@ -124,7 +124,7 @@ const GanttChart: React.FC = () => {
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
-    // E) CLEANUP — remove previous hacks
+    // G) CLEANUP — remove previous hacks
     document.documentElement.style.removeProperty('--gantt-table-w');
     document.documentElement.style.removeProperty('--gantt-header-shift');
     document.documentElement.style.removeProperty('--gantt-xfix');
@@ -255,15 +255,6 @@ const GanttChart: React.FC = () => {
       resizeObserver.disconnect();
     };
   }, [viewConfig]);
-
-  // Align zero and controls
-  useEffect(() => {
-    // Clean up any previous alignment CSS variables
-    document.documentElement.style.removeProperty('--gantt-table-w');
-    document.documentElement.style.removeProperty('--gantt-header-shift');
-    document.documentElement.style.removeProperty('--gantt-xfix');
-    document.documentElement.style.removeProperty('--gantt-timeline-offset');
-  }, []);
 
   // Scroll sync (loop-safe, attach ONCE)
   useEffect(() => {
