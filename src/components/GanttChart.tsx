@@ -992,6 +992,145 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Bootstrap Gantt IDs and scale system
+  useEffect(() => {
+    (function bootstrapGanttIdsAndScale(){
+      // 1) Finde Bars-Content + Scroller und Timeline-Content + Scroller
+      function findNodes(){
+        // Timeline ist bei dir bekannt:
+        const timeContent = document.getElementById('gantt-timeline-content')
+                          || document.querySelector('#gantt-timeline-scroll > div');
+        const timeScroll  = document.getElementById('gantt-timeline-scroll')
+                          || (timeContent && timeContent.parentElement);
+
+        // Bars: robust suchen (nach Struktur)
+        let chartContent = document.getElementById('gantt-chart-content');
+        if (!chartContent) {
+          // Kandidaten: direktes Kind des horizontal scrollbaren Body-Containers
+          chartContent =
+            document.querySelector('#gantt-body-right .relative') ||
+            document.querySelector('[id*="chart"] .relative') ||
+            document.querySelector('[id*="bars"] .relative') ||
+            document.querySelector('[data-role="bars-content"]') ||
+            document.querySelector('#gantt-root .relative'); // Fallback
+        }
+        const chartScroll = document.getElementById('gantt-chart-scroll')
+                          || (chartContent && chartContent.parentElement);
+
+        return { chartScroll, chartContent, timeScroll, timeContent };
+      }
+
+      // 2) IDs setzen, falls fehlen (keine weiteren Änderungen!)
+      function ensureIds(nodes){
+        const { chartScroll, chartContent, timeScroll, timeContent } = nodes;
+        if (!chartScroll || !chartContent || !timeScroll || !timeContent) return false;
+        if (!chartScroll.id)  chartScroll.id  = 'gantt-chart-scroll';
+        if (!chartContent.id) chartContent.id = 'gantt-chart-content';
+        if (!timeScroll.id)   timeScroll.id   = 'gantt-timeline-scroll';
+        if (!timeContent.id)  timeContent.id  = 'gantt-timeline-content';
+        return true;
+      }
+
+      // 3) `ganttApplyScale` global definieren (nur Breite, kein Styling, keine Listener)
+      function installScaleAPI(){
+        window.ganttApplyScale = function(view, presetLabel, anchorDate){
+          const cs = document.getElementById('gantt-chart-scroll');
+          const cc = document.getElementById('gantt-chart-content');
+          const ts = document.getElementById('gantt-timeline-scroll');
+          const tc = document.getElementById('gantt-timeline-content');
+          if (!cs || !cc || !ts || !tc) return false;
+
+          // Sichtbarer Bereich (Viewport)
+          const viewport = cs.clientWidth || 0;
+
+          // Einheiten bestimmen
+          let totalUnits = 24, visibleUnits = 24;
+          if (/^hour/i.test(view)) {
+            const v = parseInt(String(presetLabel).match(/\d+/)?.[0] || '24', 10);
+            visibleUnits = Math.min(24, Math.max(1, v));   // 4|6|12|18|24
+            totalUnits   = 24;
+          } else if (/^month/i.test(view)) {
+            const d = anchorDate instanceof Date ? anchorDate : new Date();
+            const dim = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+            totalUnits   = dim;
+            visibleUnits = /14/.test(presetLabel) ? 14 : /7/.test(presetLabel) ? 7 : dim;
+          } else if (/^week/i.test(view)) {
+            const work = /work/i.test(presetLabel);
+            totalUnits = visibleUnits = work ? 5 : 7;      // keine H-Scroll
+          }
+
+          // Breite deterministisch aus Viewport × (total/visible)
+          const pxPerUnit = viewport / Math.max(1, visibleUnits);
+          const contentPx = Math.round(pxPerUnit * totalUnits);
+
+          // Exakt identische Breite setzen (idempotent)
+          [cc, tc].forEach(n => {
+            n.style.width     = contentPx + 'px';
+            n.style.minWidth  = contentPx + 'px';
+            n.style.boxSizing = 'border-box';
+            n.style.transform = 'none';
+          });
+
+          // Scrollbereich korrekt begrenzen + Timeline ausrichten
+          const max = Math.max(0, contentPx - viewport);
+          if (cs.scrollLeft > max) cs.scrollLeft = max;
+          ts.scrollLeft = cs.scrollLeft;
+
+          window.__ganttScale = { view, presetLabel, totalUnits, visibleUnits, pxPerUnit, contentPx, viewport, maxScroll: max };
+          return true;
+        };
+      }
+
+      // 4) Werte aus den Controls lesen und anwenden (einmalig)
+      function readControls(){
+        const viewSel   = document.querySelector('#gantt-controls select:nth-of-type(1)') || document.querySelector('#gantt-controls select[name="view"]');
+        const presetSel = document.querySelector('#gantt-controls select:nth-of-type(2)') || document.querySelector('#gantt-controls select[name="preset"]');
+        const monthIn   = document.getElementById('gantt-month');
+
+        const viewRaw   = viewSel?.value || 'hour';
+        const preset    = presetSel?.value || (viewRaw==='hour' ? '24 Hours' : viewRaw==='week' ? 'Full Week' : 'Full Month');
+        const view      = viewRaw.charAt(0).toUpperCase() + viewRaw.slice(1);
+        let anchor = new Date();
+        if (monthIn && monthIn.value) {
+          const [y, m] = monthIn.value.split('-').map(Number);
+          if (!isNaN(y) && !isNaN(m)) anchor = new Date(y, m-1, 1);
+        }
+        return { view, preset, anchor };
+      }
+
+      // Bootstrappen (wartet bis DOM-Elemente tatsächlich da sind)
+      function init(){
+        const nodes = findNodes();
+        if (!ensureIds(nodes)) {
+          requestAnimationFrame(init);
+          return;
+        }
+        installScaleAPI();
+        const { view, preset, anchor } = readControls();
+        window.ganttApplyScale(view, preset, anchor);
+        // Debug-Hilfe im Fenster
+        window.__ganttDump = () => {
+          const cs = document.getElementById('gantt-chart-scroll');
+          const cc = document.getElementById('gantt-chart-content');
+          const ts = document.getElementById('gantt-timeline-scroll');
+          const tc = document.getElementById('gantt-timeline-content');
+          return {
+            chart: { client: cs?.clientWidth, scroll: cs?.scrollWidth },
+            time:  { client: ts?.clientWidth, scroll: ts?.scrollWidth },
+            content: { bars: cc?.style.width, timeline: tc?.style.width },
+            scale: window.__ganttScale
+          };
+        };
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    })();
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
