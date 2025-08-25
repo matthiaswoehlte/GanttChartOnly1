@@ -895,6 +895,52 @@ const GanttChart: React.FC = () => {
     })();
   }, []);
 
+  // Ensure right end is reachable
+  useEffect(() => {
+    (function ganttReachRightEnd(){
+      const tc = document.getElementById('gantt-timeline-content');
+      const ts = document.getElementById('gantt-timeline-scroll');
+      const cc = document.getElementById('gantt-chart-content');
+      const cs = document.getElementById('gantt-chart-scroll');
+      if(!tc || !ts || !cc || !cs) return;
+
+      // 1) Breite vereinheitlichen (größerer Wert gewinnt)
+      const num = v => (typeof v==='number'? v : parseFloat(v)||0);
+      const wTc = Math.max(num(tc.style.width), tc.scrollWidth, tc.clientWidth);
+      const wCc = Math.max(num(cc.style.width), cc.scrollWidth, cc.clientWidth);
+      const W   = Math.max(wTc, wCc);
+
+      [tc, cc].forEach(root => {
+        root.style.position = root.style.position || 'relative';
+        root.style.width    = W + 'px';
+        root.style.minWidth = W + 'px';
+
+        // 2) Unsichtbarer End-Marker genau am rechten Rand → Scrollbereich sicher bis W
+        let cap = root.querySelector('.gantt-endcap');
+        if(!cap){
+          cap = document.createElement('i');
+          cap.className = 'gantt-endcap';
+          root.appendChild(cap);
+        }
+        cap.style.cssText = `position:absolute;left:${W}px;top:0;width:1px;height:1px;pointer-events:none;opacity:0;`;
+      });
+
+      // 3) Letztes Timeline-Label (falls vorhanden) exakt an den rechten Rand setzen
+      (function fixLastLabel(){
+        const labels = tc.querySelectorAll('.gantt-tick--label, .gantt-tick--last');
+        if(!labels || !labels.length) return;
+        const last = labels[labels.length - 1];
+        last.style.position  = 'absolute';
+        last.style.left      = W + 'px';
+        last.style.transform = 'translateX(-100%)'; // rechtsbündig, aber innerhalb des Contents
+        last.style.whiteSpace= 'nowrap';
+      })();
+
+      // Optional: einmalige Ausrichtung Timeline ←→ Bars (kein neuer Listener!)
+      requestAnimationFrame(() => { ts.scrollLeft = cs.scrollLeft; });
+    })();
+  }, []);
+
   return (
     <div id="gantt-root">
       {/* Header - Sticky */}
