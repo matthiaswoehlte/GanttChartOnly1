@@ -64,7 +64,7 @@ const ChartArea: React.FC<ChartAreaProps> = ({
   };
 
   return (
-    <div className="relative h-full" style={{ width: timelineConfig.contentWidth }}>
+    <div className="relative h-full" style={{ width: totalUnits * pxPerUnit }}>
       {resources.map((resource, rowIndex) => {
         const resourceTasks = tasks.filter(task => 
           task.resourceId === resource.id && isTaskVisible(task)
