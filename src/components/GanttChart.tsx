@@ -6,6 +6,11 @@ import TimelineRuler from './TimelineRuler';
 import ResourceTable from './ResourceTable';
 import ChartArea from './ChartArea';
 
+// Hour labels without ":00"
+const formatHourLabel = (h: number): string => {
+  return String(h).padStart(2, '0'); // "00".."23"
+};
+
 const GanttChart: React.FC = () => {
   // Generate sample data
   const [resources] = useState<Resource[]>(() => generateResources(80));
@@ -119,6 +124,12 @@ const GanttChart: React.FC = () => {
 
   // ===== RATIO-BASED LAYOUT ENGINE =====
   useEffect(() => {
+    // E) CLEANUP — remove previous hacks
+    document.documentElement.style.removeProperty('--gantt-table-w');
+    document.documentElement.style.removeProperty('--gantt-header-shift');
+    document.documentElement.style.removeProperty('--gantt-xfix');
+    document.documentElement.style.removeProperty('--gantt-timeline-offset');
+    
     const chartScroll    = document.getElementById('gantt-chart-scroll');
     const chartContent   = document.getElementById('gantt-chart-content');
     const timelineScroll = document.getElementById('gantt-timeline-scroll');
@@ -290,15 +301,15 @@ const GanttChart: React.FC = () => {
       {/* Header - Sticky */}
       <div id="gantt-header">
         <div id="gantt-header-grid">
-          {/* Left column - bound to table width */}
+          {/* Left column - 20% */}
           <div id="gantt-title">
             <h2 className="text-lg font-semibold text-gray-200">Resources</h2>
           </div>
           
-          {/* Right column */}
-          <div id="gantt-header-chart">
+          {/* Right column - 80% */}
+          <div id="gantt-header-right">
             <div id="gantt-controls" className="mb-3">
-              <div className="ctrl">
+              <div className="flex items-center gap-2">
                 <label>View:</label>
                 <select
                   value={viewConfig.type}
@@ -310,12 +321,12 @@ const GanttChart: React.FC = () => {
                 </select>
               </div>
               
-              <div className="ctrl">
+              <div className="flex items-center gap-2">
                 <label>Preset:</label>
                 {renderPresetOptions()}
               </div>
               
-              <div className="ctrl">
+              <div className="flex items-center gap-2">
                 <label>Month:</label>
                 <input
                   id="gantt-month"
@@ -325,7 +336,7 @@ const GanttChart: React.FC = () => {
                 />
               </div>
               
-              <div className="ctrl">
+              <div className="flex items-center gap-2">
                 <span id="gantt-date-label">
                   {formatDateLabel(viewConfig.selectedDate)}
                 </span>
@@ -343,9 +354,6 @@ const GanttChart: React.FC = () => {
               </div>
             </div>
           </div>
-          
-          {/* Header vertical rule */}
-          <div id="gantt-header-vrule" aria-hidden="true" />
         </div>
       </div>
 

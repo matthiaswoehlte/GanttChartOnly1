@@ -1,5 +1,5 @@
 export const formatHour = (hour: number): string => {
-  return hour.toString().padStart(2, '0'); // "00".."23" (no ":00")
+  return String(hour).padStart(2, '0'); // "00".."23" (no ":00")
 };
 
 export const formatDate = (date: Date): string => {
