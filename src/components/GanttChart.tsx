@@ -222,17 +222,7 @@ const GanttChart: React.FC = () => {
       // Update React state
       setPxPerUnit(pxPerUnit);
       setTotalUnits(totalUnits);
-      
-      // Call timeline alignment after layout changes
-      if (window.__ganttAlignTimeline) {
-        window.__ganttAlignTimeline();
-      }
-      
-      // Call header alignment after layout changes
-      if (window.__ganttHeaderAlign) {
-        window.__ganttHeaderAlign();
-      }
-      
+
       // Debug: show mismatches immediately
       if (dbg){
         const csw = chartScroll.scrollWidth,  cCW = chartScroll.clientWidth;
@@ -257,81 +247,11 @@ const GanttChart: React.FC = () => {
 
   // Align zero and controls
   useEffect(() => {
-    // Align header to table divider
-    (function alignHeaderToTableDivider(){
-      const table   = document.getElementById('gantt-table-left');
-      const grid    = document.getElementById('gantt-header-grid');
-      const headerC = document.getElementById('gantt-header-chart');
-
-      function recompute(){
-        if (!table || !grid || !headerC) return;
-        const tableRect  = table.getBoundingClientRect();
-        const headerRect = headerC.getBoundingClientRect();
-
-        /* 1) Tabellenbreite als CSS-Var für die Grid-Spalte links */
-        const tw = Math.round(tableRect.width);
-        document.documentElement.style.setProperty('--gantt-table-w', tw + 'px');
-
-        /* 2) Delta ermitteln: Header-Chart-Left soll genau auf Table-Right liegen */
-        const dividerX = Math.round(tableRect.right);
-        const hdrLeft  = Math.round(headerRect.left);
-        const delta    = dividerX - hdrLeft;   // positiv → nach links schieben
-
-        document.documentElement.style.setProperty('--gantt-header-shift', delta + 'px');
-      }
-
-      recompute();
-      new ResizeObserver(recompute).observe(table);
-      new ResizeObserver(recompute).observe(grid);
-      window.addEventListener('resize', recompute);
-
-      /* Falls ihr ein eigenes recomputeLayout habt: am Ende ebenfalls recompute() aufrufen */
-      window.__ganttHeaderAlign = recompute;
-    })();
-
-    // Calibrate timeline alignment
-    (function calibrateTimeline(){
-      const table     = document.getElementById('gantt-table-left');
-      const chartView = document.getElementById('gantt-chart-scroll');
-      const tContent  = document.getElementById('gantt-timeline-content');
-
-      function findBarStartX() {
-        const candidate =
-          document.querySelector('[data-gantt-x0]') ||
-          document.querySelector('.gantt-row-track') ||
-          document.querySelector('.task-bar');
-        return candidate ? candidate.getBoundingClientRect().left : null;
-      }
-
-      function measureAndApply() {
-        if (!table || !chartView || !tContent) return;
-
-        const dividerX   = Math.round(table.getBoundingClientRect().right); // the visual divider
-        const timeline0X = Math.round(tContent.getBoundingClientRect().left); // current timeline zero
-        const barStartX  = findBarStartX();
-
-        // Prefer aligning to the bar start; if unknown, align to divider
-        const targetX = (barStartX ?? dividerX);
-
-        // Shift timeline so its zero coincides with targetX:
-        const delta = targetX - timeline0X; // positive -> move RIGHT, negative -> move LEFT
-        document.documentElement.style.setProperty('--gantt-xfix', `${delta}px`);
-      }
-
-      // Run now & on layout changes
-      measureAndApply();
-      new ResizeObserver(measureAndApply).observe(chartView);
-      new ResizeObserver(measureAndApply).observe(table);
-      window.addEventListener('resize', measureAndApply);
-
-      // Call after every recompute/re-render
-      window.__ganttAlignTimeline = measureAndApply;
-      
-      // Also call header alignment
-      if (window.__ganttHeaderAlign) {
-        window.__ganttHeaderAlign();
-      }
-    })();
+    // Clean up any previous alignment CSS variables
+    document.documentElement.style.removeProperty('--gantt-table-w');
+    document.documentElement.style.removeProperty('--gantt-header-shift');
+    document.documentElement.style.removeProperty('--gantt-xfix');
+    document.documentElement.style.removeProperty('--gantt-timeline-offset');
   }, []);
 
   // Scroll sync (loop-safe, attach ONCE)
