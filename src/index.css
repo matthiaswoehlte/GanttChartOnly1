@@ -109,15 +109,28 @@ html, body, #root, #gantt-root {
 }
 
 /* timeline & chart contents must start at x=0 (no left padding/margins) */
-#gantt-timeline-scroll, #gantt-chart-scroll { padding-left: 0; }
-#gantt-timeline-content, #gantt-chart-content { margin-left: 0 !important; padding-left: 0 !important; }
+#gantt-timeline-scroll { 
+  padding-left: 0;
+  overflow-x: hidden !important;  /* no UI scrollbar */
+  overflow-y: hidden;
+}
+#gantt-chart-scroll { 
+  padding-left: 0;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+}
+#gantt-timeline-content, #gantt-chart-content { 
+  margin-left: 0 !important; 
+  padding-left: 0 !important;
+  transform: none !important;      /* prevent transform-based desync */
+  box-sizing: border-box;
+}
 
-/* Remove any hidden left gutters on timeline scroller/content */
+/* Guard: No left margin on timeline scroller */
 #gantt-timeline-scroll,
 #gantt-timeline-content {
   margin-left: 0 !important;
   padding-left: 0 !important;
-  transform: none !important;
 }
 
 /* The zero anchor marks x=0 for measurement */
