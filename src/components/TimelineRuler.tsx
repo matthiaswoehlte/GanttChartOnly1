@@ -41,7 +41,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 marginLeft: hour === 0 ? '0' : '-50%'
               }}
             >
-              {formatHour(hour)}
+              {formatHourLabel(hour)}
             </div>
           </div>
         );
@@ -65,7 +65,7 @@ const TimelineRuler: React.FC<TimelineRulerProps> = ({
                 transform: 'translateX(-100%)'
               }}
             >
-              24:00
+              24
             </div>
           </div>
         );

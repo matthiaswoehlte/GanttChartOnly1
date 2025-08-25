@@ -260,6 +260,34 @@ const GanttChart: React.FC = () => {
       new ResizeObserver(setTableVar).observe(table);
       window.addEventListener('resize', setTableVar);
     })();
+
+    // Align timeline to bars
+    (function alignTimelineToBars(){
+      const chartScroll = document.getElementById('gantt-chart-scroll');
+      const timelineCont= document.getElementById('gantt-timeline-content');
+      
+      if (!chartScroll || !timelineCont) return;
+
+      function measureX0(){
+        const vp = chartScroll.getBoundingClientRect();
+        let target =
+          document.querySelector('[data-gantt-x0]') ||
+          document.querySelector('.gantt-row-track') ||
+          document.querySelector('.task-bar');
+
+        let x0 = 0;
+        if (target) {
+          const r = target.getBoundingClientRect();
+          x0 = Math.round(r.left - vp.left);
+        }
+        document.documentElement.style.setProperty('--gantt-x0', x0 + 'px');
+      }
+
+      // Run now, on resize and after layout recompute
+      measureX0();
+      new ResizeObserver(measureX0).observe(chartScroll);
+      window.addEventListener('resize', measureX0);
+    })();
   }, []);
 
   // Scroll sync (loop-safe, attach ONCE)

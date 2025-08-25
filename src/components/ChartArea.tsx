@@ -57,7 +57,7 @@ const ChartArea: React.FC<ChartAreaProps> = ({
   };
 
   return (
-    <div className="relative h-full" style={{ width: totalUnits * pxPerUnit }}>
+    <div className="relative h-full" style={{ width: totalUnits * pxPerUnit }} data-gantt-x0>
       {resources.map((resource, rowIndex) => {
         const resourceTasks = tasks.filter(task => 
           task.resourceId === resource.id && isTaskVisible(task)
@@ -69,6 +69,7 @@ const ChartArea: React.FC<ChartAreaProps> = ({
             className={`relative border-b border-gray-600 row ${
               rowIndex % 2 === 0 ? 'even' : 'odd'
             }`}
+            data-gantt-row-track
           >
             {resourceTasks.map(task => (
               <TaskBar
